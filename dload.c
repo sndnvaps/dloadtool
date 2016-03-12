@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #include "util.h"
 #include "dload.h"
@@ -135,7 +136,7 @@ int dload_read(int fd, uint8_t *buffer, uint32_t size) {
   insize = size;
   inbuf = (uint8_t*)malloc(size);
   
-  printf("Recv:\n");
+  fprintf(stderr, "< ");
   insize = read(fd, inbuf, size);
   if(insize > 0){
     dload_response(inbuf, insize, &outbuf, &outsize);
@@ -155,11 +156,11 @@ int dload_write(int fd, uint8_t *buffer, uint32_t size) {
   uint32_t outsize = 0;
   uint8_t* outbuf = NULL;
   
-  printf("Send:\n");
+  fprintf(stderr, "> ");
   dload_request(buffer, size, &outbuf, &outsize);
   if(outsize > 0) {
     outsize = write(fd, outbuf, outsize);
-    //hexdump(buffer, size);
+    hexdump(buffer, size);
   }
   
   free(outbuf);

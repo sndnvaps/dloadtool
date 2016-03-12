@@ -16,7 +16,7 @@
 //7e         0f        20 02 fe 00        01 00          ?? ??       7e
 //7e         05        20 01 20 00                       9f 1f       7e
 
-#define DLOAD WRITE                       0x01
+#define DLOAD_WRITE                       0x01
 #define DLOAD_ACK                         0x02
 #define DLOAD_NAK                         0x03
 #define DLOAD_ERASE                       0x04

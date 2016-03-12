@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <termios.h>
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -32,7 +33,7 @@ static int dload_action_send(int argc, char **argv, int fd) {
   unsigned char input[0x200];
   unsigned char output[0x200];
   
-  for(v = 2; v < argc; v++) {
+  for(v = optind; v < argc; v++) {
     const char* arg = (const char*) argv[v];
     unsigned int size = strlen(arg) / 2;
     memset(output,'\0', sizeof(output));
@@ -65,12 +66,12 @@ static int dload_action_none(int fd) {
   
   unsigned int addr = 0x20012000;
   
-  dload_get_params(fd);
   dload_get_sw_version(fd);
-  dload_upload_firmware(fd, addr,
+  dload_get_params(fd);
+  /*dload_upload_firmware(fd, addr,
 			"/usr/local/standalone/firmware/Trek/dbl.mbn");
   
-  dload_send_execute(fd, addr);
+			dload_send_execute(fd, addr);*/
   
   return 0;
 }
@@ -79,14 +80,13 @@ int main(int argc, char **argv) {
 
   int fd, c;
   char config = 0;
-
+  struct termios terminal_data;
+  
   unsigned int addr = 0;
   char *dev = NULL, *path = NULL;
   dload_action_t action = DLOAD_ACTION_NONE;
   
-  printf("Starting DLOADTool\n");
-  
-  while((c = getopt(argc, argv, "a:f:d:h")) != -1){
+  while((c = getopt(argc, argv, "a:f:d:ch")) != -1){
     switch(c){
     case 'a' :
       sscanf(optarg, "0x%08x", &addr);
@@ -95,33 +95,41 @@ int main(int argc, char **argv) {
       action = DLOAD_ACTION_UPLOAD;
       path = optarg;
       break;
+    case 'c' :
+      action = DLOAD_ACTION_SEND;
+      break;
     case 'd' :
       dev = optarg;
       break;
     default :
       printf("Usage: %s [-f firmware -a address] " \
 	     "[-c command1 command2 ... commandN]\n", argv[0]);
+      
       return -1;
     }
   }
-      
+  
   // Vendor ID: 0x5c6
   // Product ID: 0x9006
   // ttyUSBx
   if((fd = open(dev, O_RDWR)) != -1){
-    printf("Device %s Opened\n", dev);
-    /* TODO : config */
+    //printf("Device %s Opened\n", dev);
+    /* Config */
+    tcgetattr(fd, &terminal_data);
+    cfmakeraw(&terminal_data);
+    tcsetattr(fd, TCSANOW, &terminal_data);
+    
     switch(action) {
     case DLOAD_ACTION_SEND : dload_action_send(argc, argv, fd); break;
     case DLOAD_ACTION_UPLOAD : dload_action_upload(path, fd); break;
     case DLOAD_ACTION_NONE : dload_action_none(fd); break;
     }
 
-    printf("Closing Interface\n");
+    //printf("Closing Interface\n");
     close(fd);
     
   }else
-    fprintf(stderr, "Couldn't open device interface\n");
+    perror(dev);
 
   return 0;
 }
