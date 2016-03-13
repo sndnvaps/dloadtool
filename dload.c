@@ -110,6 +110,31 @@ int dload_upload_firmware(int fd, uint32_t address, const char *path) {
   return 0;
 }
 
+int dload_upload_data(int fd, uint32_t addr,
+		      const char *data, size_t len) {
+  
+  uint8_t buf[0x100];
+  dload_write_addr *packet = (dload_write_addr*)buf;
+ 
+  //memset(input, '\0', sizeof(input));
+  //memset(output, '\0', sizeof(output));
+
+  memset(buf, '\0', sizeof(buf));
+  memcpy(packet->buffer, data, len);
+  packet->code = DLOAD_WRITE_ADDR;
+  packet->size = flip_endian16(len);
+  packet->address = flip_endian32(addr);
+    
+  dload_write(fd, (uint8_t*)packet, sizeof(dload_write_addr) + len);
+  dload_read(fd, buf, sizeof(buf));
+  if(buf[0] != 0x2){
+    fprintf(stderr, "Error 0x%hhx!!!\n", buf[0]);
+    return -1;
+  }
+  
+  return 0;
+}
+
 int dload_send_execute(int fd, uint32_t address) {
   
   uint8_t input[0x100];

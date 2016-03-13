@@ -5,7 +5,7 @@ OBJ = util.o \
       main.o
 
 CFLAGS = -g
-LDFLAGS =
+LDFLAGS = -lcintelhex
 
 all: $(TARGET)
 

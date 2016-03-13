@@ -81,6 +81,7 @@ int dload_get_params(int fd);
 int dload_get_sw_version(int fd);
 int dload_send_execute(int fd, uint32_t address);
 int dload_upload_firmware(int fd, uint32_t address, const char* path);
+int dload_upload_data(int fd, uint32_t addr, const char *data, size_t len);
 
 int dload_read(int fd, uint8_t* buffer, uint32_t size);
 int dload_write(int fd, uint8_t* buffer, uint32_t size);

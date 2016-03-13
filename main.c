@@ -20,10 +20,13 @@
 #include "util.h"
 #include "dload.h"
 
+#include <cintelhex.h>
+
 typedef enum {
   DLOAD_ACTION_NONE,
   DLOAD_ACTION_SEND,
   DLOAD_ACTION_UPLOAD,
+  DLOAD_ACTION_UPLOAD_HEX
 } dload_action_t;
 
 static int dload_action_send(int argc, char **argv, int fd) {
@@ -50,6 +53,36 @@ static int dload_action_send(int argc, char **argv, int fd) {
   }
 }
 
+static int dload_action_upload_hex(const char *path, int fd) {
+
+  int err;
+  ihex_recordset_t *rs;
+  ihex_record_t *record;
+  unsigned int i = 0, offset;
+
+  if(!(rs = ihex_rs_from_file(path))){
+    perror(ihex_error());
+    return -1;
+  }
+
+  do {
+    err = ihex_rs_iterate_data(rs, &i, &record, &offset);
+    if (err || record == 0)
+      break;
+    
+    /* send record */
+    dload_upload_data(fd, offset + record->ihr_address,
+		      record->ihr_data, record->ihr_length);
+    
+  } while (i > 0);
+
+  /* TODO : Check error */
+  dload_send_execute(fd, 0x2a000000); /* FIXME */
+  
+  ihex_rs_free(rs);
+  return 0;
+}							    
+
 static int dload_action_upload(const char *path, int fd) {
   
   unsigned int addr = 0x20012000;
@@ -68,10 +101,6 @@ static int dload_action_none(int fd) {
   
   dload_get_sw_version(fd);
   dload_get_params(fd);
-  /*dload_upload_firmware(fd, addr,
-			"/usr/local/standalone/firmware/Trek/dbl.mbn");
-  
-			dload_send_execute(fd, addr);*/
   
   return 0;
 }
@@ -86,13 +115,17 @@ int main(int argc, char **argv) {
   char *dev = NULL, *path = NULL;
   dload_action_t action = DLOAD_ACTION_NONE;
   
-  while((c = getopt(argc, argv, "a:f:d:ch")) != -1){
+  while((c = getopt(argc, argv, "a:u:i:d:ch")) != -1){
     switch(c){
     case 'a' :
       sscanf(optarg, "0x%08x", &addr);
       break;
-    case 'f' :
+    case 'u' :
       action = DLOAD_ACTION_UPLOAD;
+      path = optarg;
+      break;
+    case 'i' :
+      action = DLOAD_ACTION_UPLOAD_HEX;
       path = optarg;
       break;
     case 'c' :
@@ -122,6 +155,7 @@ int main(int argc, char **argv) {
     switch(action) {
     case DLOAD_ACTION_SEND : dload_action_send(argc, argv, fd); break;
     case DLOAD_ACTION_UPLOAD : dload_action_upload(path, fd); break;
+    case DLOAD_ACTION_UPLOAD_HEX : dload_action_upload_hex(path, fd); break;
     case DLOAD_ACTION_NONE : dload_action_none(fd); break;
     }
 
