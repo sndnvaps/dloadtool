@@ -82,7 +82,7 @@ int dload_get_sw_version(int fd) {
   dload_read(fd, output, sizeof(output));
   if(output[0] == DLOAD_SW_VERS_RESP) {
     response = (dload_sw_version*)output;
-    printf("Software Version: %s\n", response->version);
+    printf("Software Version: %.16s\n", response->version);
     
   }else{
     fprintf(stderr, "Error receiving software version!!\n");
@@ -193,25 +193,20 @@ int dload_send_execute(int fd, uint32_t address) {
 
 int dload_read(int fd, uint8_t *buffer, uint32_t size) {
   
-  uint32_t insize = 0;
-  uint32_t outsize = 0;
-  uint8_t* inbuf = NULL;
-  uint8_t* outbuf = NULL;
+  size_t insize;
+  uint32_t outsize;
+  uint8_t *outbuf = NULL;
     
-  insize = size;
-  inbuf = (uint8_t*)malloc(size);
-  
   //fprintf(stderr, "< ");
-  insize = read(fd, inbuf, size);
+  insize = read(fd, buffer, size);
   if(insize > 0){
-    dload_response(inbuf, insize, &outbuf, &outsize);
+    dload_response(buffer, insize, &outbuf, &outsize);
     if(outsize <= size) {
       hexdump(outbuf, outsize);
       memcpy(buffer, outbuf, outsize);
     }
   }
-    
-  free(inbuf);
+  
   free(outbuf);
   return outsize;
 }
