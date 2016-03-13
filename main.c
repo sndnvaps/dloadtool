@@ -88,8 +88,8 @@ static int dload_action_loadhex(const char *path, int fd) {
   } while (i > 0);
 
   /* FIXME : Use last record */
-  if(dload_send_execute(fd, 0x2a000000) < 0)
-    fprintf(stderr, "Can't execute software\n");
+  //if(dload_send_execute(fd, 0x2a000000) < 0)
+  //  fprintf(stderr, "Can't execute software\n");
   
   ihex_rs_free(rs);
   return 0;
@@ -119,6 +119,15 @@ static int dload_action_info(int fd) {
   return 0;
 }
 
+static int dload_action_execute(const char *address, int fd) {
+
+  unsigned int addr;
+  if(sscanf(address, "%x", &addr))
+    return dload_send_execute(fd, addr);
+
+  return -1;
+}
+
 /* Simple parser */
 
 #define DLOAD_COMMAND_INFO    0
@@ -127,6 +136,7 @@ static int dload_action_info(int fd) {
 #define DLOAD_COMMAND_SEND    3
 #define DLOAD_COMMAND_LOADHEX 4
 #define DLOAD_COMMAND_LOADBIN 5
+#define DLOAD_COMMAND_EXECUTE 6
 
 int dload_parse_command(const char *cmd) {
 
@@ -138,6 +148,7 @@ int dload_parse_command(const char *cmd) {
     if(!strcmp(cmd, "send"))    return DLOAD_COMMAND_SEND;
     if(!strcmp(cmd, "loadhex")) return DLOAD_COMMAND_LOADHEX;
     if(!strcmp(cmd, "loadbin")) return DLOAD_COMMAND_LOADBIN;
+    if(!strcmp(cmd, "execute")) return DLOAD_COMMAND_EXECUTE;
   }
   
   return -1;
@@ -187,6 +198,7 @@ int main(int argc, char **argv) {
     case DLOAD_COMMAND_SEND : dload_action_send(argc, argv, fd); break;
     case DLOAD_COMMAND_LOADHEX : dload_action_loadhex(arg, fd); break;
     case DLOAD_COMMAND_LOADBIN : dload_action_loadbin(arg, fd); break;
+    case DLOAD_COMMAND_EXECUTE : dload_action_execute(arg, fd); break;
     }
 
     close(fd);
