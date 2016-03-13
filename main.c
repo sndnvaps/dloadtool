@@ -24,28 +24,26 @@
 
 int verbose = 0; /* FIXME */
 
-static int dload_action_send(int argc, char **argv, int fd) {
+static int dload_action_send(const char *data, int fd) {
   
-  int i = 0;
-  int v = 0;
-  unsigned char input[0x200];
-  unsigned char output[0x200];
-  
-  for(v = optind; v < argc; v++) {
-    const char* arg = (const char*) argv[v];
-    unsigned int size = strlen(arg) / 2;
-    memset(output,'\0', sizeof(output));
-    memset(input, '\0', sizeof(input));
-    for(i = 0; i < size; i++) {
-      unsigned int byte = 0;
-      sscanf(arg, "%02x", &byte);
-      output[i] = byte;
-      arg += 2;
+  int byte;
+  size_t size = 0;
+  unsigned char input[256];
+  unsigned char output[256];
+
+  while(*data){
+    if(sscanf(data, "%02x", &byte)){
+      output[size++] = 0xff & byte;
+      data += 2;
     }
-    
-    dload_write(fd, output, size);
-    dload_read(fd, input, sizeof(input));
   }
+  
+  dload_write(fd, output, size);
+  dload_read(fd, input, sizeof(input));
+  if(input[0] == 2)
+    return 0;
+
+  return -1;
 }
 
 static int dload_action_crack(int fd) {
@@ -214,7 +212,7 @@ int main(int argc, char **argv) {
     case DLOAD_COMMAND_INFO : dload_action_info(fd); break;
     case DLOAD_COMMAND_RESET : dload_send_reset(fd); break;
     case DLOAD_COMMAND_MAGIC : dload_send_magic(fd); break;
-    case DLOAD_COMMAND_SEND : dload_action_send(argc, argv, fd); break;
+    case DLOAD_COMMAND_SEND : dload_action_send(arg, fd); break;
     case DLOAD_COMMAND_LOADHEX : dload_action_loadhex(arg, arg2, fd); break;
     case DLOAD_COMMAND_LOADBIN : dload_action_loadbin(arg, arg2, fd); break;
     case DLOAD_COMMAND_EXECUTE : dload_action_execute(arg, fd); break;
