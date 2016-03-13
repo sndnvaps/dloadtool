@@ -17,6 +17,9 @@
 
 #define BUFSIZE 256
 
+extern int verbose; /* FIXME */
+int nack_errno = 0;
+
 unsigned char magic[] =
   "\x01QCOM fast download protocol host\x02\x02\x01";
 int dload_send_magic(int fd) {
@@ -44,6 +47,7 @@ int dload_send_reset(int fd) {
   if(response[0] == 0x2)
     return 0;
 
+  nack_errno = response[2];
   return -1;
 }
 
@@ -202,7 +206,7 @@ int dload_read(int fd, uint8_t *buffer, uint32_t size) {
   if(insize > 0){
     dload_response(buffer, insize, &outbuf, &outsize);
     if(outsize <= size) {
-      hexdump(outbuf, outsize);
+      if(verbose) hexdump(outbuf, outsize);
       memcpy(buffer, outbuf, outsize);
     }
   }
@@ -220,7 +224,7 @@ int dload_write(int fd, uint8_t *buffer, uint32_t size) {
   dload_request(buffer, size, &outbuf, &outsize);
   if(outsize > 0) {
     outsize = write(fd, outbuf, outsize);
-    //hexdump(buffer, size);
+    if(verbose) hexdump(buffer, size);
   }
   
   free(outbuf);

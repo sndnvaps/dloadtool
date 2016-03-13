@@ -22,6 +22,7 @@
 
 #include <cintelhex.h>
 
+int verbose = 0; /* FIXME */
 
 static int dload_action_send(int argc, char **argv, int fd) {
   
@@ -57,20 +58,27 @@ static int dload_action_crack(int fd) {
   return 0;
 }
 
-static int dload_action_loadhex(const char *path, int fd) {
+static int dload_action_loadhex(const char *path,
+				const char *address, int fd) {
 
   int err;
   ihex_recordset_t *rs;
   ihex_record_t *record;
   unsigned int i = 0, offset;
 
+  unsigned int addr = 0;
+  if(address != NULL)
+    sscanf(address, "%x", &addr);
+
   if(!(rs = ihex_rs_from_file(path))){
-    perror(ihex_error());
+    fprintf(stderr, "%s\n", ihex_error());
     return -1;
   }
   
   dload_get_sw_version(fd);
   dload_get_params(fd);
+  
+  fprintf(stderr, "Loading file %s...", path);
   
   do {
     if((err = ihex_rs_iterate_data(rs, &i, &record, &offset)))
@@ -80,17 +88,22 @@ static int dload_action_loadhex(const char *path, int fd) {
       break;
     
     /* send record */
-    if(dload_upload_data(fd, offset + record->ihr_address,
+    if(dload_upload_data(fd, addr + offset + record->ihr_address,
 			 record->ihr_data, record->ihr_length) < 0){
       fprintf(stderr, "Error during upload\n");
       goto out;
-    }  
+    }
+
+    /* Show processing */
+    fprintf(stderr, ".");
+    
   } while (i > 0);
 
   /* FIXME : Use last record */
   //if(dload_send_execute(fd, 0x2a000000) < 0)
   //  fprintf(stderr, "Can't execute software\n");
-  
+
+  fprintf(stderr, "\n");
   ihex_rs_free(rs);
   return 0;
   
@@ -103,7 +116,8 @@ static int dload_action_loadbin(const char *path,
 				const char *address, int fd) {
   
   unsigned int addr = 0;
-  sscanf(address, "%x", &addr);
+  if(address != NULL)
+    sscanf(address, "%x", &addr);
   
   dload_get_sw_version(fd);
   dload_get_params(fd);
@@ -172,17 +186,18 @@ int main(int argc, char **argv) {
   char *dev = "/dev/ttyUSB0";
   char *arg = NULL, *arg2 = NULL;
   
-  while((c = getopt(argc, argv, "F:h")) != -1){
+  while((c = getopt(argc, argv, "F:vh")) != -1){
     switch(c){
     case 'F': dev = optarg; break;
-    case 'h' : usage(argv);
+    case 'v': verbose = 1; break;
+    case 'h': usage(argv);
     }
   }
 
   if((cmd = dload_parse_command(argv[optind])) < 0)
     usage(argv);
 
-  /* Get cmd argument (only one for the moment) */
+  /* Get cmd argument (two max for the moment) */
   arg = argv[++optind];
   arg2 = argv[++optind];
   
@@ -200,7 +215,7 @@ int main(int argc, char **argv) {
     case DLOAD_COMMAND_RESET : dload_send_reset(fd); break;
     case DLOAD_COMMAND_MAGIC : dload_send_magic(fd); break;
     case DLOAD_COMMAND_SEND : dload_action_send(argc, argv, fd); break;
-    case DLOAD_COMMAND_LOADHEX : dload_action_loadhex(arg, fd); break;
+    case DLOAD_COMMAND_LOADHEX : dload_action_loadhex(arg, arg2, fd); break;
     case DLOAD_COMMAND_LOADBIN : dload_action_loadbin(arg, arg2, fd); break;
     case DLOAD_COMMAND_EXECUTE : dload_action_execute(arg, fd); break;
     }
