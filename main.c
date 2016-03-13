@@ -22,12 +22,6 @@
 
 #include <cintelhex.h>
 
-typedef enum {
-  DLOAD_ACTION_NONE,
-  DLOAD_ACTION_SEND,
-  DLOAD_ACTION_UPLOAD,
-  DLOAD_ACTION_UPLOAD_HEX
-} dload_action_t;
 
 static int dload_action_send(int argc, char **argv, int fd) {
   
@@ -53,7 +47,17 @@ static int dload_action_send(int argc, char **argv, int fd) {
   }
 }
 
-static int dload_action_upload_hex(const char *path, int fd) {
+static int dload_action_crack(int fd) {
+
+  unsigned long long code = 0;
+  while(dload_send_unlock(fd, code) < 0)
+    code++;
+
+  printf("***Unlock code is %016x\n", code);
+  return 0;
+}
+
+static int dload_action_loadhex(const char *path, int fd) {
 
   int err;
   ihex_recordset_t *rs;
@@ -64,40 +68,49 @@ static int dload_action_upload_hex(const char *path, int fd) {
     perror(ihex_error());
     return -1;
   }
-
+  
+  dload_get_sw_version(fd);
+  dload_get_params(fd);
+  
   do {
-    err = ihex_rs_iterate_data(rs, &i, &record, &offset);
-    if (err || record == 0)
+    if((err = ihex_rs_iterate_data(rs, &i, &record, &offset)))
+      goto out;
+
+    if(!record)
       break;
     
     /* send record */
-    dload_upload_data(fd, offset + record->ihr_address,
-		      record->ihr_data, record->ihr_length);
-    
+    if(dload_upload_data(fd, offset + record->ihr_address,
+			 record->ihr_data, record->ihr_length) < 0){
+      fprintf(stderr, "Error during upload\n");
+      goto out;
+    }  
   } while (i > 0);
-
-  /* TODO : Check error */
-  dload_send_execute(fd, 0x2a000000); /* FIXME */
+  
+  if(dload_send_execute(fd, 0x2a000000) < 0)
+    fprintf(stderr, "Can't execute software\n");
   
   ihex_rs_free(rs);
   return 0;
+  
+ out:
+  ihex_rs_free(rs);
+  return -1;
 }							    
 
-static int dload_action_upload(const char *path, int fd) {
+static int dload_action_loadbin(const char *path, int fd) {
   
-  unsigned int addr = 0x20012000;
+  unsigned int addr = 0x0;
   
-  dload_get_params(fd);
   dload_get_sw_version(fd);
+  dload_get_params(fd);
   dload_upload_firmware(fd, addr, path);
   dload_send_execute(fd, addr);
 
   return 0;
 }
 
-static int dload_action_none(int fd) {
-  
-  unsigned int addr = 0x20012000;
+static int dload_action_info(int fd) {
   
   dload_get_sw_version(fd);
   dload_get_params(fd);
@@ -105,61 +118,76 @@ static int dload_action_none(int fd) {
   return 0;
 }
 
-int main(int argc, char **argv) {
+/* Simple parser */
 
-  int fd, c;
-  char config = 0;
-  struct termios terminal_data;
-  
-  unsigned int addr = 0;
-  char *dev = NULL, *path = NULL;
-  dload_action_t action = DLOAD_ACTION_NONE;
-  
-  while((c = getopt(argc, argv, "a:u:i:d:ch")) != -1){
-    switch(c){
-    case 'a' :
-      sscanf(optarg, "0x%08x", &addr);
-      break;
-    case 'u' :
-      action = DLOAD_ACTION_UPLOAD;
-      path = optarg;
-      break;
-    case 'i' :
-      action = DLOAD_ACTION_UPLOAD_HEX;
-      path = optarg;
-      break;
-    case 'c' :
-      action = DLOAD_ACTION_SEND;
-      break;
-    case 'd' :
-      dev = optarg;
-      break;
-    default :
-      printf("Usage: %s [-f firmware -a address] " \
-	     "[-c command1 command2 ... commandN]\n", argv[0]);
-      
-      return -1;
-    }
+#define DLOAD_COMMAND_INFO    0
+#define DLOAD_COMMAND_RESET   1
+#define DLOAD_COMMAND_MAGIC   2
+#define DLOAD_COMMAND_SEND    3
+#define DLOAD_COMMAND_LOADHEX 4
+#define DLOAD_COMMAND_LOADBIN 5
+
+int dload_parse_command(const char *cmd) {
+
+  if(cmd != NULL){
+    /* TODO : add limit */
+    if(!strcmp(cmd, "info"))    return DLOAD_COMMAND_INFO;
+    if(!strcmp(cmd, "reset"))   return DLOAD_COMMAND_RESET;
+    if(!strcmp(cmd, "magic"))   return DLOAD_COMMAND_MAGIC;
+    if(!strcmp(cmd, "send"))    return DLOAD_COMMAND_SEND;
+    if(!strcmp(cmd, "loadhex")) return DLOAD_COMMAND_LOADHEX;
+    if(!strcmp(cmd, "loadbin")) return DLOAD_COMMAND_LOADBIN;
   }
   
-  // Vendor ID: 0x5c6
-  // Product ID: 0x9006
-  // ttyUSBx
+  return -1;
+}
+
+void usage(char **argv) {
+
+  printf("Usage: %s [-F device] command [args...]\n", argv[0]);
+  exit(0);
+}
+
+int main(int argc, char **argv) {
+
+  int fd, c, cmd;
+  char config = 0;
+  struct termios terminal_data;
+
+  char *arg = NULL;
+  char *dev = "/dev/ttyUSB0";
+  
+  while((c = getopt(argc, argv, "F:h")) != -1){
+    switch(c){
+    case 'F': dev = optarg; break;
+    case 'h' : usage(argv);
+    }
+  }
+
+  if((cmd = dload_parse_command(argv[optind])) < 0)
+    usage(argv);
+
+  /* Get cmd argument (only one for the moment) */
+  arg = argv[++optind];
+  
+  /* Vendor ID: 0x5c6
+   * Product ID: 0x9006 | 0x9008
+   * /dev/ttyUSB0 by default */
   if((fd = open(dev, O_RDWR)) != -1){
-    //printf("Device %s Opened\n", dev);
-    /* Config */
+    /* TTY Config */
     tcgetattr(fd, &terminal_data);
     cfmakeraw(&terminal_data);
     tcsetattr(fd, TCSANOW, &terminal_data);
     
-    switch(action) {
-    case DLOAD_ACTION_SEND : dload_action_send(argc, argv, fd); break;
-    case DLOAD_ACTION_UPLOAD : dload_action_upload(path, fd); break;
-    case DLOAD_ACTION_UPLOAD_HEX : dload_action_upload_hex(path, fd); break;
-    case DLOAD_ACTION_NONE : dload_action_none(fd); break;
+    switch(cmd) {
+    case DLOAD_COMMAND_INFO : dload_action_info(fd); break;
+    case DLOAD_COMMAND_RESET : dload_send_reset(fd); break;
+    case DLOAD_COMMAND_MAGIC : dload_send_magic(fd); break;
+    case DLOAD_COMMAND_SEND : dload_action_send(argc, argv, fd); break;
+    case DLOAD_COMMAND_LOADHEX : dload_action_loadhex(arg, fd); break;
+    case DLOAD_COMMAND_LOADBIN : dload_action_loadbin(arg, fd); break;
     }
 
-    //printf("Closing Interface\n");
     close(fd);
     
   }else

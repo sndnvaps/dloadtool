@@ -78,6 +78,19 @@ uint32_t flip_endian32(uint32_t value) {
     return result;
 }
 
+uint64_t flip_endian64(uint64_t value) {
+  uint64_t result = 0;
+  result |= (value & 0xFF) << 56;
+  result |= (value & 0xFF00) << 40;
+  result |= (value & 0xFF0000) << 24;
+  result |= (value & 0xFF000000) << 8;
+  result |= (value & 0xFF00000000) >> 8;
+  result |= (value & 0xFF0000000000) >> 24;
+  result |= (value & 0xFF000000000000) >> 40;
+  result |= (value & 0xFF00000000000000) >> 56;
+  return result;
+}
+
 /* QCDM protocol frames are pseudo Async HDLC frames which end with a 3-byte
  * trailer.  This trailer consists of the 16-bit CRC of the frame plus an ending
  * "async control character" whose value is 0x7E.  The frame *and* the CRC are

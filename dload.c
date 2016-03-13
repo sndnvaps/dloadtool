@@ -15,14 +15,45 @@
 #include "util.h"
 #include "dload.h"
 
+#define BUFSIZE 256
+
+unsigned char magic[] =
+  "\x01QCOM fast download protocol host\x02\x02\x01";
+int dload_send_magic(int fd) {
+
+  uint8_t response[BUFSIZE];
+  uint8_t request = DLOAD_WRITE;
+  
+  dload_write(fd, magic, sizeof(magic) - 1);
+  dload_read(fd, response, sizeof response);
+  if(response[0] == 0x2){
+    fprintf(stderr, "%s\n", &response[1]);
+    return 0;
+  }
+
+  return -1;
+}
+
+int dload_send_reset(int fd) {
+
+  uint8_t response[BUFSIZE];
+  uint8_t request = DLOAD_RESET;
+ 
+  dload_write(fd, &request, sizeof(request));
+  dload_read(fd, response, sizeof response);
+  if(response[0] == 0x2)
+    return 0;
+
+  return -1;
+}
+
 int dload_get_params(int fd) {
   
-  uint8_t output[0x100];
-  uint8_t request = 0x0;
+  uint8_t output[BUFSIZE];
   dload_params *response = NULL;
+  uint8_t request = DLOAD_PARAM_REQ;
   
-  request = DLOAD_PARAM_REQ;
-  memset(output, '\0', sizeof(output));
+  //memset(output, '\0', sizeof(output));
   dload_write(fd, &request, sizeof(request));
   dload_read(fd, output, sizeof(output));
   if(output[0] == DLOAD_PARAM_RESP){
@@ -44,16 +75,15 @@ int dload_get_params(int fd) {
 
 int dload_get_sw_version(int fd) {
   
-  uint8_t output[0x100];
-  uint8_t request = 0x0;
-  dload_sw_version *response = NULL;
+  uint8_t output[BUFSIZE];
+  dload_sw_version *response;
+  uint8_t request = DLOAD_SW_VER_REQ;
     
-  request = DLOAD_SW_VER_REQ;
-  memset(output, '\0', sizeof(output));
+  //memset(output, '\0', sizeof(output));
   dload_write(fd, &request, sizeof(request));
   dload_read(fd, output, sizeof(output));
   if(output[0] == DLOAD_SW_VERS_RESP) {
-    response = (dload_sw_version*) output;
+    response = (dload_sw_version*)output;
     printf("Software Version: %s\n", response->version);
     
   }else{
@@ -64,16 +94,31 @@ int dload_get_sw_version(int fd) {
   return 0;
 }
 
+int dload_send_unlock(int fd, uint64_t key) {
+
+  dload_unlock request;
+  uint8_t response[BUFSIZE];  
+  
+  request.code = DLOAD_UNLOCK;
+  request.security_key = flip_endian64(key);
+  
+  dload_write(fd, (uint8_t*)&request, sizeof(request));
+  dload_read(fd, response, sizeof(response));
+  if(response[0] == 0x2)
+    return 0;
+  
+  return -1;
+}
+
 //Frame      Code      Address                Size
 //           0x0f       0x20012000            0x100
 //7e         0x05       0x20012000
 unsigned char done[] = "\x7e\x05\x20\x01\x20\x00\x9f\x1f\x7e";
-int dload_upload_firmware(int fd, uint32_t address, const char *path) {
+int dload_upload_firmware(int fd, uint32_t addr, const char *path) {
   
   FILE *fp = NULL;
-  uint8_t input[0x100];
-  uint8_t output[0x100];
-  uint32_t addr = 0x20012000; /* TODO : remove */
+  uint8_t input[BUFSIZE];
+  uint8_t output[BUFSIZE];
 
   dload_write_addr *packet = (dload_write_addr*)
     malloc(sizeof(dload_write_addr) + sizeof(output));
@@ -113,13 +158,9 @@ int dload_upload_firmware(int fd, uint32_t address, const char *path) {
 int dload_upload_data(int fd, uint32_t addr,
 		      const char *data, size_t len) {
   
-  uint8_t buf[0x100];
+  uint8_t buf[BUFSIZE];
   dload_write_addr *packet = (dload_write_addr*)buf;
- 
-  //memset(input, '\0', sizeof(input));
-  //memset(output, '\0', sizeof(output));
-
-  memset(buf, '\0', sizeof(buf));
+  
   memcpy(packet->buffer, data, len);
   packet->code = DLOAD_WRITE_ADDR;
   packet->size = flip_endian16(len);
@@ -137,18 +178,19 @@ int dload_upload_data(int fd, uint32_t addr,
 
 int dload_send_execute(int fd, uint32_t address) {
   
-  uint8_t input[0x100];
-  memset(input, '\0', sizeof(input));
-    
-  dload_execute *request = (dload_execute*)malloc(sizeof(dload_execute));
-  request->code = DLOAD_EXECUTE;
-  request->address = flip_endian32(address);
-    
-  dload_write(fd, (uint8_t*)request, sizeof(dload_execute));
-  dload_read(fd, input, sizeof(input));
+  uint8_t response[BUFSIZE];
+  dload_execute request;
   
-  free(request);
-  return 0;
+  request.code = DLOAD_EXECUTE;
+  request.address = flip_endian32(address);
+    
+  dload_write(fd, (uint8_t*)&request, sizeof(dload_execute));
+  dload_read(fd, response, sizeof(response));
+
+  if(response[0] == 0x2)
+    return 0;
+  
+  return -1;
 }
 
 int dload_read(int fd, uint8_t *buffer, uint32_t size) {
@@ -161,7 +203,7 @@ int dload_read(int fd, uint8_t *buffer, uint32_t size) {
   insize = size;
   inbuf = (uint8_t*)malloc(size);
   
-  fprintf(stderr, "< ");
+  //fprintf(stderr, "< ");
   insize = read(fd, inbuf, size);
   if(insize > 0){
     dload_response(inbuf, insize, &outbuf, &outsize);
@@ -181,11 +223,11 @@ int dload_write(int fd, uint8_t *buffer, uint32_t size) {
   uint32_t outsize = 0;
   uint8_t* outbuf = NULL;
   
-  fprintf(stderr, "> ");
+  //fprintf(stderr, "> ");
   dload_request(buffer, size, &outbuf, &outsize);
   if(outsize > 0) {
     outsize = write(fd, outbuf, outsize);
-    hexdump(buffer, size);
+    //hexdump(buffer, size);
   }
   
   free(outbuf);

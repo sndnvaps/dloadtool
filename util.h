@@ -25,6 +25,7 @@ void hexdump (unsigned char *data, unsigned int amount);
 
 uint16_t flip_endian16(uint16_t value);
 uint32_t flip_endian32(uint32_t value);
+uint64_t flip_endian64(uint64_t value);
 
 uint16_t dm_crc16 (const char *buffer, size_t len);
 

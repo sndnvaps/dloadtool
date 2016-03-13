@@ -42,6 +42,17 @@
 //#define DLOAD_SERIAL_NUMBER_READ_REQ      0x16  //Serial Number Read Request
 //#define DLOAD_SERIAL_NUMBER_READ_RESP     0x16
 
+/* NACK codes - Only for information, no use at the moment 
+ * Data is from Gassan Idriss' openPST Project
+ */
+#define DLOAD_NAK_INVALID_FRAME_FCS           0x01
+#define DLOAD_NAK_INVALID_DESTINATION_ADDRESS 0x02
+#define DLOAD_NAK_INVALID_LENGTH              0x03
+#define DLOAD_NAK_UNEXPECTED_END_OF_PACKET    0x04
+#define DLOAD_NAK_DATA_LENGTH_TOO_LARGE       0x05
+#define DLOAD_NAK_INVALID_COMMAND             0x06
+/* To Be continued */
+
 typedef struct {
     uint16_t code;
     uint16_t sequence;
@@ -55,6 +66,12 @@ typedef struct {
     uint16_t size;
     uint8_t buffer[0];
 } __attribute__((packed)) dload_write_addr;
+
+typedef struct {
+    uint8_t code;
+    uint32_t address;
+    uint16_t size;
+} __attribute__((packed)) dload_erase;
 
 typedef struct {
     uint8_t code;
@@ -77,6 +94,19 @@ typedef struct {
     uint8_t device_type;
 } __attribute__((packed)) dload_params;
 
+typedef struct {
+  uint8_t code;
+  uint64_t security_key;
+} __attribute__((packed)) dload_unlock;
+
+typedef struct {
+  uint8_t nak;
+  uint16_t error_code;
+} __attribute__((packed)) dload_nak;
+  
+int dload_send_magic(int fd);
+int dload_send_reset(int fd);
+int dload_send_unlock(int fd, uint64_t key);
 int dload_get_params(int fd);
 int dload_get_sw_version(int fd);
 int dload_send_execute(int fd, uint32_t address);
