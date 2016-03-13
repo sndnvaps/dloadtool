@@ -111,6 +111,18 @@ static int dload_action_loadhex(const char *path,
   return -1;
 }
 
+static int dload_action_infombn(const char *path) {
+
+  int fd;
+  mbn_head_t header;
+  
+  if((fd = mbn_open(path, &header)) < 0)
+    return -1;
+
+  close(fd);
+  return 0;
+}
+
 static int dload_action_loadmbn(const char *path,
 				const char *address, int fd) {
 
@@ -195,6 +207,7 @@ static int dload_action_execute(const char *address, int fd) {
 #define DLOAD_COMMAND_LOADMBN 5
 #define DLOAD_COMMAND_LOADBIN 6
 #define DLOAD_COMMAND_EXECUTE 7
+#define DLOAD_COMMAND_INFOMBN 8
 
 int dload_parse_command(const char *cmd) {
 
@@ -209,6 +222,7 @@ int dload_parse_command(const char *cmd) {
     if(!strcmp(cmd, "loadbin")) return DLOAD_COMMAND_LOADBIN;
     if(!strcmp(cmd, "execute") ||
        !strcmp(cmd, "exec"))    return DLOAD_COMMAND_EXECUTE;
+    if(!strcmp(cmd, "infombn")) return DLOAD_COMMAND_INFOMBN;
   }
   
   return -1;
@@ -262,6 +276,7 @@ int main(int argc, char **argv) {
     case DLOAD_COMMAND_LOADMBN : dload_action_loadmbn(arg, arg2, fd); break;
     case DLOAD_COMMAND_LOADBIN : dload_action_loadbin(arg, arg2, fd); break;
     case DLOAD_COMMAND_EXECUTE : dload_action_execute(arg, fd); break;
+    case DLOAD_COMMAND_INFOMBN : dload_action_infombn(arg); break;
     }
 
     close(fd);
