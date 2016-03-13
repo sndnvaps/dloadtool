@@ -9,6 +9,9 @@ LDFLAGS = -lcintelhex
 
 all: $(TARGET)
 
+debug: CFLAGS += -g
+debug: all
+
 $(TARGET): $(OBJ)
 	$(CC) $(OBJ) -o $@ $(LDFLAGS)
 

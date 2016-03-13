@@ -99,9 +99,11 @@ static int dload_action_loadhex(const char *path, int fd) {
   return -1;
 }							    
 
-static int dload_action_loadbin(const char *path, int fd) {
+static int dload_action_loadbin(const char *path,
+				const char *address, int fd) {
   
-  unsigned int addr = 0x0;
+  unsigned int addr = 0;
+  sscanf(address, "%x", &addr);
   
   dload_get_sw_version(fd);
   dload_get_params(fd);
@@ -148,7 +150,8 @@ int dload_parse_command(const char *cmd) {
     if(!strcmp(cmd, "send"))    return DLOAD_COMMAND_SEND;
     if(!strcmp(cmd, "loadhex")) return DLOAD_COMMAND_LOADHEX;
     if(!strcmp(cmd, "loadbin")) return DLOAD_COMMAND_LOADBIN;
-    if(!strcmp(cmd, "execute")) return DLOAD_COMMAND_EXECUTE;
+    if(!strcmp(cmd, "execute") ||
+       !strcmp(cmd, "exec"))    return DLOAD_COMMAND_EXECUTE;
   }
   
   return -1;
@@ -166,8 +169,8 @@ int main(int argc, char **argv) {
   char config = 0;
   struct termios terminal_data;
 
-  char *arg = NULL;
   char *dev = "/dev/ttyUSB0";
+  char *arg = NULL, *arg2 = NULL;
   
   while((c = getopt(argc, argv, "F:h")) != -1){
     switch(c){
@@ -181,6 +184,7 @@ int main(int argc, char **argv) {
 
   /* Get cmd argument (only one for the moment) */
   arg = argv[++optind];
+  arg2 = argv[++optind];
   
   /* Vendor ID: 0x5c6
    * Product ID: 0x9006 | 0x9008
@@ -197,7 +201,7 @@ int main(int argc, char **argv) {
     case DLOAD_COMMAND_MAGIC : dload_send_magic(fd); break;
     case DLOAD_COMMAND_SEND : dload_action_send(argc, argv, fd); break;
     case DLOAD_COMMAND_LOADHEX : dload_action_loadhex(arg, fd); break;
-    case DLOAD_COMMAND_LOADBIN : dload_action_loadbin(arg, fd); break;
+    case DLOAD_COMMAND_LOADBIN : dload_action_loadbin(arg, arg2, fd); break;
     case DLOAD_COMMAND_EXECUTE : dload_action_execute(arg, fd); break;
     }
 
