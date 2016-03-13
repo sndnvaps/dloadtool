@@ -53,7 +53,6 @@ int dload_get_params(int fd) {
   dload_params *response = NULL;
   uint8_t request = DLOAD_PARAM_REQ;
   
-  //memset(output, '\0', sizeof(output));
   dload_write(fd, &request, sizeof(request));
   dload_read(fd, output, sizeof(output));
   if(output[0] == DLOAD_PARAM_RESP){
@@ -79,7 +78,6 @@ int dload_get_sw_version(int fd) {
   dload_sw_version *response;
   uint8_t request = DLOAD_SW_VER_REQ;
     
-  //memset(output, '\0', sizeof(output));
   dload_write(fd, &request, sizeof(request));
   dload_read(fd, output, sizeof(output));
   if(output[0] == DLOAD_SW_VERS_RESP) {

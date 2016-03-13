@@ -86,7 +86,8 @@ static int dload_action_loadhex(const char *path, int fd) {
       goto out;
     }  
   } while (i > 0);
-  
+
+  /* FIXME : Use last record */
   if(dload_send_execute(fd, 0x2a000000) < 0)
     fprintf(stderr, "Can't execute software\n");
   
