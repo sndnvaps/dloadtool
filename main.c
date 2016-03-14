@@ -124,7 +124,7 @@ static int dload_action_loadmbn(const char *path,
     sscanf(address, "%x", &addr);
 
   if((mbn_fd = mbn_open(path, &header)) < 0)
-    goto err;
+    return -1;
   
   /* Here's the header is correct, start loading */
   fprintf(stderr, "Loading file %s...", path);
@@ -144,10 +144,12 @@ static int dload_action_loadmbn(const char *path,
     fprintf(stderr, "Error reading file\n");
     goto err;
   }
-  
+
+  close(fd);
   return size;
   
  err:
+  close(fd);
   return -1;
 }
 
