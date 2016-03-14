@@ -10,6 +10,8 @@
 #ifndef MBN_H
 #define MBN_H
 
+#include <stdint.h>
+
 /* 32-bit, little endian */
 typedef struct mbn_head {
   uint32_t codeword;         /* d1 dC 4b 84 */

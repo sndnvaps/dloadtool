@@ -2,6 +2,7 @@ TARGET = dloadtool
 
 OBJ = util.o \
       dload.o \
+      mbn.o \
       main.o
 
 CFLAGS = -g

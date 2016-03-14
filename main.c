@@ -17,6 +17,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
+#include "mbn.h"
 #include "util.h"
 #include "dload.h"
 
@@ -108,7 +109,47 @@ static int dload_action_loadhex(const char *path,
  out:
   ihex_rs_free(rs);
   return -1;
-}							    
+}
+
+static int dload_action_loadmbn(const char *path,
+				const char *address, int fd) {
+
+  int mbn_fd, n;
+  size_t size = 0;
+  mbn_head_t header;
+  unsigned int addr = 0;
+  unsigned char buf[1024]; /* FIXME */
+  
+  if(address != NULL)
+    sscanf(address, "%x", &addr);
+
+  if((mbn_fd = mbn_open(path, &header)) < 0)
+    goto err;
+  
+  /* Here's the header is correct, start loading */
+  fprintf(stderr, "Loading file %s...", path);
+  while((n = read(mbn_fd, buf, sizeof(buf))) > 0){
+    if(dload_upload_data(fd,
+			 addr + header.load_address + size,
+			 buf, n) < 0){
+      fprintf(stderr, "Error during upload\n");
+      goto err;
+    }
+    /* Show processing */
+    fprintf(stderr, ".");
+    size += n;
+  }
+    
+  if(n < 0){
+    fprintf(stderr, "Error reading file\n");
+    goto err;
+  }
+  
+  return size;
+  
+ err:
+  return -1;
+}
 
 static int dload_action_loadbin(const char *path,
 				const char *address, int fd) {
@@ -149,8 +190,9 @@ static int dload_action_execute(const char *address, int fd) {
 #define DLOAD_COMMAND_MAGIC   2
 #define DLOAD_COMMAND_SEND    3
 #define DLOAD_COMMAND_LOADHEX 4
-#define DLOAD_COMMAND_LOADBIN 5
-#define DLOAD_COMMAND_EXECUTE 6
+#define DLOAD_COMMAND_LOADMBN 5
+#define DLOAD_COMMAND_LOADBIN 6
+#define DLOAD_COMMAND_EXECUTE 7
 
 int dload_parse_command(const char *cmd) {
 
@@ -161,6 +203,7 @@ int dload_parse_command(const char *cmd) {
     if(!strcmp(cmd, "magic"))   return DLOAD_COMMAND_MAGIC;
     if(!strcmp(cmd, "send"))    return DLOAD_COMMAND_SEND;
     if(!strcmp(cmd, "loadhex")) return DLOAD_COMMAND_LOADHEX;
+    if(!strcmp(cmd, "loadmbn")) return DLOAD_COMMAND_LOADMBN;
     if(!strcmp(cmd, "loadbin")) return DLOAD_COMMAND_LOADBIN;
     if(!strcmp(cmd, "execute") ||
        !strcmp(cmd, "exec"))    return DLOAD_COMMAND_EXECUTE;
@@ -214,6 +257,7 @@ int main(int argc, char **argv) {
     case DLOAD_COMMAND_MAGIC : dload_send_magic(fd); break;
     case DLOAD_COMMAND_SEND : dload_action_send(arg, fd); break;
     case DLOAD_COMMAND_LOADHEX : dload_action_loadhex(arg, arg2, fd); break;
+    case DLOAD_COMMAND_LOADMBN : dload_action_loadmbn(arg, arg2, fd); break;
     case DLOAD_COMMAND_LOADBIN : dload_action_loadbin(arg, arg2, fd); break;
     case DLOAD_COMMAND_EXECUTE : dload_action_execute(arg, fd); break;
     }
