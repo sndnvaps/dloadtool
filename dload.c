@@ -15,7 +15,7 @@
 #include "util.h"
 #include "dload.h"
 
-#define BUFSIZE 256
+#define BUFSIZE 4096
 
 extern int verbose; /* FIXME */
 int nack_errno = 0;
@@ -119,8 +119,8 @@ unsigned char done[] = "\x7e\x05\x20\x01\x20\x00\x9f\x1f\x7e";
 int dload_upload_firmware(int fd, uint32_t addr, const char *path) {
   
   FILE *fp = NULL;
-  uint8_t input[BUFSIZE];
-  uint8_t output[BUFSIZE];
+  uint8_t input[0x100];
+  uint8_t output[0x100];
 
   dload_write_addr *packet = (dload_write_addr*)
     malloc(sizeof(dload_write_addr) + sizeof(output));

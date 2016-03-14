@@ -53,7 +53,16 @@ extern int ack_errno;
 #define DLOAD_NAK_UNEXPECTED_END_OF_PACKET    0x04
 #define DLOAD_NAK_DATA_LENGTH_TOO_LARGE       0x05
 #define DLOAD_NAK_INVALID_COMMAND             0x06
-/* To Be continued */
+#define DLOAD_NAK_OPERATION_FAILT             0x07
+#define DLOAD_NAK_WRONG_FLASH_INTELLIGENT_ID  0x08
+#define DLOAD_NAK_BAD_PROGRAMMING_VOLTAGE     0x09
+#define DLOAD_NAK_WRITE_VERIFY_FAILED         0x0A
+#define DLOAD_NAK_UNLOCK_REQUIRED             0x0B
+#define DLOAD_NAK_INCORRECT_SECURITY_CODE     0x0C
+#define DLOAD_NAK_CANNOT_POWER_DOWN_PHONE     0x0D
+#define DLOAD_NAK_OPERATION_NOT_PERMITTED     0x0E
+#define DLOAD_NAK_INVALID_READ_ADDRESS        0x0F
+/* To Be continued ? */
 
 typedef struct {
     uint16_t code;
