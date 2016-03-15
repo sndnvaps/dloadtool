@@ -222,9 +222,54 @@ static int dload_action_signhex(const char *hex_path,
   return ret;
 }
 
-static int dload_action_signmbn(const char *hex,
-				const char *sign) {
+static int dload_action_signmbn(const char *mbn_path,
+				const char *sign_path) {
   
+  char buf[4096];
+  struct stat stat;
+  mbn_header_t header;
+  int mbn_fd, sign_fd, n;
+  
+  /* Open signature file. TODO : Check */
+  if((sign_fd = open(sign_path, O_RDONLY)) != -1)
+    fstat(sign_fd, &stat);
+  else{
+    perror("can't find signature file\n");
+    return -1;
+  }
+  
+  if((mbn_fd = mbn_from_file(mbn_path, &header)) < 0)
+    return -1;
+
+  /* Prepare data output */
+  off_t offset = 0;
+  size_t bytes_left = header.body_length;
+  /* Modify header to include signature */
+  header.body_length += stat.st_size;
+  header.signature_length = stat.st_size;
+  /* Output modified header */
+  write(fileno(stdout), &header, sizeof(header));
+  /* Output data */
+  while(bytes_left){
+    if((n = read(mbn_fd, buf, sizeof(buf))) > 0){
+      /* TODO : check */
+      write(fileno(stdout), buf, n);
+      bytes_left -= n;
+      offset += n;
+    }else
+      break;
+  }
+  
+  if(bytes_left)
+    fprintf(stderr, "Warning, some data might be missing\n");
+  
+  /* Append signature. TODO : check */
+  while((n = read(sign_fd, buf, 0x100)) > 0)
+    write(fileno(stdout), buf, n);
+  
+  /* That's all, folks */
+  close(sign_fd);
+  close(mbn_fd);
   return 0;
 }
 
