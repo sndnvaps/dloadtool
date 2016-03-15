@@ -158,6 +158,7 @@ int dload_upload_firmware(int fd, uint32_t addr, const char *path) {
 int dload_upload_data(int fd, uint32_t addr,
 		      const void *data, size_t len) {
   
+  dload_ack ack;
   uint8_t buf[BUFSIZE];
   dload_write_addr *packet = (dload_write_addr*)buf;
   
@@ -167,13 +168,12 @@ int dload_upload_data(int fd, uint32_t addr,
   packet->address = flip_endian32(addr);
     
   dload_write(fd, packet, sizeof(dload_write_addr) + len);
-  dload_read(fd, buf, sizeof(buf));
-  if(buf[0] != 0x2){
-    fprintf(stderr, "Error 0x%hhx!!!\n", buf[0]);
-    return -1;
-  }
+  dload_read(fd, &ack, sizeof(ack));
+  if(ack.code == DLOAD_ACK)
+    return 0;
   
-  return 0;
+  nak_errno = ack.errno;
+  return -1;
 }
 
 int dload_send_execute(int fd, uint32_t address) {

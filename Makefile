@@ -3,6 +3,7 @@ TARGET = dloadtool
 OBJ = util.o \
       dload.o \
       mbn.o \
+      ihex.o \
       main.o
 
 CFLAGS = -Wall

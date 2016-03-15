@@ -12,16 +12,16 @@
 #include <string.h>
 #include <unistd.h>
 #include <termios.h>
+#include <stdlib.h>
 
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 
 #include "mbn.h"
+#include "ihex.h"
 #include "util.h"
 #include "dload.h"
-
-#include <cintelhex.h>
 
 int verbose = 0; /* FIXME */
 
@@ -50,51 +50,37 @@ static int dload_action_send(const char *data, int fd) {
 static int dload_action_loadhex(const char *path,
 				const char *address, int fd) {
 
-  int err;
-  ihex_recordset_t *rs;
-  ihex_record_t *record;
-  unsigned int i = 0, offset;
-
+  int i = 0;
+  unsigned char *buf;
   unsigned int addr = 0;
+  unsigned int size, offset;
+  
   if(address != NULL)
     sscanf(address, "%x", &addr);
 
-  if(!(rs = ihex_rs_from_file(path))){
-    fprintf(stderr, "%s\n", ihex_error());
-    return -1;
-  }
-  
   dload_get_sw_version(fd);
   dload_get_params(fd);
   
   fprintf(stderr, "Loading file %s...", path);
-  
-  do {
-    if((err = ihex_rs_iterate_data(rs, &i, &record, &offset)))
-      goto out;
+  if((buf = ihex_raw_from_file(path, &size, &offset))){
+    fprintf(stderr, "File size is %u bytes\n", size);
+    fprintf(stderr, "Load address is 0x%08x\n", offset);
+    do{
+      size_t len = ((size < 0x400) ? size : 0x400); /* FIXME */
+      if(dload_upload_data(fd, addr + i, &buf[i], len) < 0){
+	fprintf(stderr, "Error during upload\n");
+	break;
+      }
+      i += len;
+      size -= len;
+      /* Show processing */
+      fprintf(stderr, ".");
+    } while(size > 0);
+    /* Don't forget this */
+    ihex_free(buf);
+  }
 
-    if(!record)
-      break;
-    
-    /* send record */
-    if(dload_upload_data(fd, addr + offset + record->ihr_address,
-			 record->ihr_data, record->ihr_length) < 0){
-      fprintf(stderr, "Error during upload\n");
-      goto out;
-    }
-
-    /* Show processing */
-    fprintf(stderr, ".");
-    
-  } while (i > 0);
-
-  fprintf(stderr, "\n");
-  ihex_rs_free(rs);
   return 0;
-  
- out:
-  ihex_rs_free(rs);
-  return -1;
 }
 
 static int dload_action_infombn(const char *path) {
@@ -186,16 +172,15 @@ static int dload_action_signhex(const char *hex_path,
 				const char *sign_path) {
 
   int ret = -1, n;
-  uint8_t *buf, *data;
-  
+  uint8_t *buf, *data;  
   mbn_header_t header;
-  ihex_recordset_t *rs;
   
-  off_t offset;
-  size_t bytes_left;  
+  size_t bytes_left;
+  unsigned int offset, size;
 
   int sign_fd;
   struct stat stat;
+  
   /* Open signature file. TODO : Check */
   if((sign_fd = open(sign_path, O_RDONLY)) != -1)
     fstat(sign_fd, &stat);
@@ -205,44 +190,35 @@ static int dload_action_signhex(const char *hex_path,
   }
   
   /* Open intel hex file */
-  if((rs = ihex_rs_from_file(hex_path))){
-    /* Allocate memory */
-    size_t size = ihex_rs_get_size(rs);
-    if((buf = (uint8_t*)malloc(size))){
-      /* TODO : check everything */
-      ihex_mem_copy(rs, buf, size, IHEX_WIDTH_32BIT, IHEX_ORDER_BIGENDIAN);
-      data = mbn_from_mem(buf, size, &header);
-      /* Prepare data output */
-      offset = 0;
-      bytes_left = header.body_length;
-      /* Modify header to include signature */
-      header.body_length += stat.st_size;
-      header.signature_length = stat.st_size;
-      /* Output modified header */
-      write(fileno(stdout), &header, sizeof(header));
-      /* Output data */
-      while(bytes_left){
-	if((n = write(fileno(stdout), &data[offset], bytes_left)) > 0){
-	  bytes_left -= n;
-	  offset += n;
-	}else
-	  break;
-      }
-      /* Append signature. TODO : check */
-      while((n = read(sign_fd, buf, 0x100)) > 0)
-	write(fileno(stdout), buf, n);
-
-      /* That's all, folks */
-      close(sign_fd);
-      free(buf);
-      ret = 0;
-      
-    }else
-      perror("hex2mbn");
+  if((buf = ihex_raw_from_file(hex_path, &size, &offset))){
+    data = mbn_from_mem(buf, size, &header);
+    /* Prepare data output */
+    offset = 0;
+    bytes_left = header.body_length;
+    /* Modify header to include signature */
+    header.body_length += stat.st_size;
+    header.signature_length = stat.st_size;
+    /* Output modified header */
+    write(fileno(stdout), &header, sizeof(header));
+    /* Output data */
+    while(bytes_left){
+      if((n = write(fileno(stdout), &data[offset], bytes_left)) > 0){
+	bytes_left -= n;
+	offset += n;
+      }else
+	break;
+    }
+    /* Append signature. TODO : check */
+    while((n = read(sign_fd, buf, 0x100)) > 0)
+      write(fileno(stdout), buf, n);
     
-    /* Free record set */
-    ihex_rs_free(rs);
-  }
+    /* That's all, folks */
+    close(sign_fd);
+    ihex_free(buf);
+    ret = 0;
+    
+  }else
+    perror("hex2mbn");
   
   return ret;
 }
