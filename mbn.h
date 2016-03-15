@@ -13,7 +13,7 @@
 #include <stdint.h>
 
 /* 32-bit, little endian */
-typedef struct mbn_head {
+typedef struct mbn_header {
   uint32_t codeword;         /* d1 dC 4b 84 */
   uint32_t magic;            /* 34 10 d7 73 */
   uint32_t image_type;       /* see below */
@@ -26,7 +26,8 @@ typedef struct mbn_head {
   uint32_t signature_length; /* 256 bytes */
   uint32_t cert_store_address;
   uint32_t cert_store_length;
-} __attribute__ ((packed)) mbn_head_t;
+  uint8_t  body[0];
+} __attribute__ ((packed)) mbn_header_t;
 
 /* Numbers */
 #define MBN_HEAD_CODEWORD 0x844bdcd1 /* little-endian */
@@ -37,6 +38,9 @@ typedef struct mbn_head {
 #define MBN_HEAD_IMG_SBL1    0x15
 
 /* Functions */
-int mbn_open(const char *path, mbn_head_t *head);
+int mbn_from_file(const char *path, mbn_header_t *h);
+void *mbn_from_mem(void *buf, size_t size, mbn_header_t *h);
+
+int mbn_display_header(mbn_header_t *h);
 
 #endif

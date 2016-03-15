@@ -47,16 +47,6 @@ static int dload_action_send(const char *data, int fd) {
   return -1;
 }
 
-static int dload_action_crack(int fd) {
-
-  unsigned long long code = 0;
-  while(dload_send_unlock(fd, code) < 0)
-    code++;
-
-  printf("***Unlock code is %016x\n", code);
-  return 0;
-}
-
 static int dload_action_loadhex(const char *path,
 				const char *address, int fd) {
 
@@ -98,10 +88,6 @@ static int dload_action_loadhex(const char *path,
     
   } while (i > 0);
 
-  /* FIXME : Use last record */
-  //if(dload_send_execute(fd, 0x2a000000) < 0)
-  //  fprintf(stderr, "Can't execute software\n");
-
   fprintf(stderr, "\n");
   ihex_rs_free(rs);
   return 0;
@@ -114,11 +100,12 @@ static int dload_action_loadhex(const char *path,
 static int dload_action_infombn(const char *path) {
 
   int fd;
-  mbn_head_t header;
+  mbn_header_t header;
   
-  if((fd = mbn_open(path, &header)) < 0)
+  if((fd = mbn_from_file(path, &header)) < 0)
     return -1;
 
+  mbn_display_header(&header);
   close(fd);
   return 0;
 }
@@ -128,14 +115,14 @@ static int dload_action_loadmbn(const char *path,
 
   int mbn_fd, n;
   size_t size = 0;
-  mbn_head_t header;
+  mbn_header_t header;
   unsigned int addr = 0;
   unsigned char buf[1024]; /* FIXME */
   
   if(address != NULL)
     sscanf(address, "%x", &addr);
 
-  if((mbn_fd = mbn_open(path, &header)) < 0)
+  if((mbn_fd = mbn_from_file(path, &header)) < 0)
     return -1;
   
   /* Here's the header is correct, start loading */
@@ -145,7 +132,8 @@ static int dload_action_loadmbn(const char *path,
 			 addr + header.load_address + size,
 			 buf, n) < 0){
       fprintf(stderr, "Error during upload\n");
-      goto err;
+      size = -1;
+      goto out;
     }
     /* Show processing */
     fprintf(stderr, ".");
@@ -154,15 +142,12 @@ static int dload_action_loadmbn(const char *path,
     
   if(n < 0){
     fprintf(stderr, "Error reading file\n");
-    goto err;
+    size = -1;
   }
 
+ out:
   close(fd);
   return size;
-  
- err:
-  close(fd);
-  return -1;
 }
 
 static int dload_action_loadbin(const char *path,
@@ -175,7 +160,7 @@ static int dload_action_loadbin(const char *path,
   dload_get_sw_version(fd);
   dload_get_params(fd);
   dload_upload_firmware(fd, addr, path);
-  dload_send_execute(fd, addr);
+  //dload_send_execute(fd, addr);
 
   return 0;
 }
@@ -197,6 +182,77 @@ static int dload_action_execute(const char *address, int fd) {
   return -1;
 }
 
+static int dload_action_signhex(const char *hex_path,
+				const char *sign_path) {
+
+  int ret = -1, n;
+  uint8_t *buf, *data;
+  
+  mbn_header_t header;
+  ihex_recordset_t *rs;
+  
+  off_t offset;
+  size_t bytes_left;  
+
+  int sign_fd;
+  struct stat stat;
+  /* Open signature file. TODO : Check */
+  if((sign_fd = open(sign_path, O_RDONLY)) != -1)
+    fstat(sign_fd, &stat);
+  else{
+    perror("can't find signature file\n");
+    return -1;
+  }
+  
+  /* Open intel hex file */
+  if((rs = ihex_rs_from_file(hex_path))){
+    /* Allocate memory */
+    size_t size = ihex_rs_get_size(rs);
+    if((buf = (uint8_t*)malloc(size))){
+      /* TODO : check everything */
+      ihex_mem_copy(rs, buf, size, IHEX_WIDTH_32BIT, IHEX_ORDER_BIGENDIAN);
+      data = mbn_from_mem(buf, size, &header);
+      /* Prepare data output */
+      offset = 0;
+      bytes_left = header.body_length;
+      /* Modify header to include signature */
+      header.body_length += stat.st_size;
+      header.signature_length = stat.st_size;
+      /* Output modified header */
+      write(fileno(stdout), &header, sizeof(header));
+      /* Output data */
+      while(bytes_left){
+	if((n = write(fileno(stdout), &data[offset], bytes_left)) > 0){
+	  bytes_left -= n;
+	  offset += n;
+	}else
+	  break;
+      }
+      /* Append signature. TODO : check */
+      while((n = read(sign_fd, buf, 0x100)) > 0)
+	write(fileno(stdout), buf, n);
+
+      /* That's all, folks */
+      close(sign_fd);
+      free(buf);
+      ret = 0;
+      
+    }else
+      perror("hex2mbn");
+    
+    /* Free record set */
+    ihex_rs_free(rs);
+  }
+  
+  return ret;
+}
+
+static int dload_action_signmbn(const char *hex,
+				const char *sign) {
+  
+  return 0;
+}
+
 /* Simple parser */
 
 #define DLOAD_COMMAND_INFO    0
@@ -208,6 +264,8 @@ static int dload_action_execute(const char *address, int fd) {
 #define DLOAD_COMMAND_LOADBIN 6
 #define DLOAD_COMMAND_EXECUTE 7
 #define DLOAD_COMMAND_INFOMBN 8
+#define DLOAD_COMMAND_SIGNHEX 9
+#define DLOAD_COMMAND_SIGNMBN 10
 
 int dload_parse_command(const char *cmd) {
 
@@ -222,7 +280,12 @@ int dload_parse_command(const char *cmd) {
     if(!strcmp(cmd, "loadbin")) return DLOAD_COMMAND_LOADBIN;
     if(!strcmp(cmd, "execute") ||
        !strcmp(cmd, "exec"))    return DLOAD_COMMAND_EXECUTE;
-    if(!strcmp(cmd, "infombn")) return DLOAD_COMMAND_INFOMBN;
+    if(!strcmp(cmd, "infombn") ||
+       !strcmp(cmd, "mbninfo")) return DLOAD_COMMAND_INFOMBN;
+    if(!strcmp(cmd, "signhex") ||
+       !strcmp(cmd, "hexsign")) return DLOAD_COMMAND_SIGNHEX;
+    if(!strcmp(cmd, "mbnsign") ||
+       !strcmp(cmd, "signmbn")) return DLOAD_COMMAND_SIGNMBN;
   }
   
   return -1;
@@ -237,7 +300,6 @@ void usage(char **argv) {
 int main(int argc, char **argv) {
 
   int fd, c, cmd;
-  char config = 0;
   struct termios terminal_data;
 
   char *dev = "/dev/ttyUSB0";
@@ -277,6 +339,9 @@ int main(int argc, char **argv) {
     case DLOAD_COMMAND_LOADBIN : dload_action_loadbin(arg, arg2, fd); break;
     case DLOAD_COMMAND_EXECUTE : dload_action_execute(arg, fd); break;
     case DLOAD_COMMAND_INFOMBN : dload_action_infombn(arg); break;
+    case DLOAD_COMMAND_SIGNHEX : dload_action_signhex(arg, arg2); break;
+    case DLOAD_COMMAND_SIGNMBN : dload_action_signmbn(arg, arg2); break;
+    default : fprintf(stderr, "Unknown command %s\n", argv[optind-2]); break;
     }
 
     close(fd);

@@ -18,36 +18,35 @@
 #define BUFSIZE 4096
 
 extern int verbose; /* FIXME */
-int nack_errno = 0;
+int nak_errno = 0;
 
 unsigned char magic[] =
   "\x01QCOM fast download protocol host\x02\x02\x01";
 int dload_send_magic(int fd) {
 
-  uint8_t response[BUFSIZE];
-  uint8_t request = DLOAD_WRITE;
+  dload_ack ack;
+  //uint8_t request = DLOAD_WRITE;
   
   dload_write(fd, magic, sizeof(magic) - 1);
-  dload_read(fd, response, sizeof response);
-  if(response[0] == 0x2){
-    fprintf(stderr, "%s\n", &response[1]);
+  dload_read(fd, &ack, sizeof ack);
+  if(ack.code == DLOAD_ACK)
     return 0;
-  }
 
+  nak_errno = ack.errno;
   return -1;
 }
 
 int dload_send_reset(int fd) {
 
-  uint8_t response[BUFSIZE];
+  dload_ack ack;
   uint8_t request = DLOAD_RESET;
  
   dload_write(fd, &request, sizeof(request));
-  dload_read(fd, response, sizeof response);
-  if(response[0] == 0x2)
+  dload_read(fd, &ack, sizeof ack);
+  if(ack.code == DLOAD_ACK)
     return 0;
-
-  nack_errno = response[2];
+  
+  nak_errno = ack.errno;
   return -1;
 }
 
@@ -67,13 +66,12 @@ int dload_get_params(int fd) {
     printf("Model: 0x%hhx\n", response->model);
     printf("Device Size: 0x%hhx\n", response->device_size);
     printf("Device Type: 0x%hhx\n", response->device_type);
-    
-  }else{
-    fprintf(stderr, "Error receiving software parameters!!\n");
-    return -1;
+    return 0;
   }
   
-  return 0;
+  nak_errno = ((dload_ack*)response)->errno;
+  fprintf(stderr, "Error receiving software parameters!!\n");
+  return -1;
 }
 
 int dload_get_sw_version(int fd) {
@@ -87,28 +85,28 @@ int dload_get_sw_version(int fd) {
   if(output[0] == DLOAD_SW_VERS_RESP) {
     response = (dload_sw_version*)output;
     printf("Software Version: %.16s\n", response->version);
-    
-  }else{
-    fprintf(stderr, "Error receiving software version!!\n");
-    return -1;
+    return 0;
   }
   
-  return 0;
+  nak_errno = ((dload_ack*)output)->errno;
+  fprintf(stderr, "Error receiving software version!!\n");
+  return -1;
 }
 
 int dload_send_unlock(int fd, uint64_t key) {
 
+  dload_ack ack;
   dload_unlock request;
-  uint8_t response[BUFSIZE];  
   
   request.code = DLOAD_UNLOCK;
   request.security_key = flip_endian64(key);
   
-  dload_write(fd, (uint8_t*)&request, sizeof(request));
-  dload_read(fd, response, sizeof(response));
-  if(response[0] == 0x2)
+  dload_write(fd, &request, sizeof(request));
+  dload_read(fd, &ack, sizeof(ack));
+  if(ack.code == DLOAD_ACK)
     return 0;
-  
+
+  nak_errno = ack.errno;
   return -1;
 }
 
@@ -139,7 +137,7 @@ int dload_upload_firmware(int fd, uint32_t addr, const char *path) {
 	packet->size = flip_endian16(len);
 	packet->address = flip_endian32(addr);
         
-	dload_write(fd, (uint8_t*)packet, sizeof(dload_write_addr) + len);
+	dload_write(fd, packet, sizeof(dload_write_addr) + len);
 	dload_read(fd, input, sizeof(input));
 	if(input[0] != 0x2) {
 	  fprintf(stderr, "Error 0x%hhx!!!\n", input[0]);
@@ -158,7 +156,7 @@ int dload_upload_firmware(int fd, uint32_t addr, const char *path) {
 }
 
 int dload_upload_data(int fd, uint32_t addr,
-		      const char *data, size_t len) {
+		      const void *data, size_t len) {
   
   uint8_t buf[BUFSIZE];
   dload_write_addr *packet = (dload_write_addr*)buf;
@@ -168,7 +166,7 @@ int dload_upload_data(int fd, uint32_t addr,
   packet->size = flip_endian16(len);
   packet->address = flip_endian32(addr);
     
-  dload_write(fd, (uint8_t*)packet, sizeof(dload_write_addr) + len);
+  dload_write(fd, packet, sizeof(dload_write_addr) + len);
   dload_read(fd, buf, sizeof(buf));
   if(buf[0] != 0x2){
     fprintf(stderr, "Error 0x%hhx!!!\n", buf[0]);
@@ -180,22 +178,22 @@ int dload_upload_data(int fd, uint32_t addr,
 
 int dload_send_execute(int fd, uint32_t address) {
   
-  uint8_t response[BUFSIZE];
+  dload_ack ack;
   dload_execute request;
   
   request.code = DLOAD_EXECUTE;
   request.address = flip_endian32(address);
     
-  dload_write(fd, (uint8_t*)&request, sizeof(dload_execute));
-  dload_read(fd, response, sizeof(response));
-
-  if(response[0] == 0x2)
+  dload_write(fd, &request, sizeof(dload_execute));
+  dload_read(fd, &ack, sizeof(ack));
+  if(ack.code == DLOAD_ACK)
     return 0;
-  
+
+  nak_errno = ack.errno;
   return -1;
 }
 
-int dload_read(int fd, uint8_t *buffer, uint32_t size) {
+int dload_read(int fd, void *buffer, uint32_t size) {
   
   size_t insize;
   uint32_t outsize;
@@ -215,7 +213,7 @@ int dload_read(int fd, uint8_t *buffer, uint32_t size) {
   return outsize;
 }
 
-int dload_write(int fd, uint8_t *buffer, uint32_t size) {
+int dload_write(int fd, void *buffer, uint32_t size) {
   
   uint32_t outsize = 0;
   uint8_t* outbuf = NULL;
@@ -231,7 +229,7 @@ int dload_write(int fd, uint8_t *buffer, uint32_t size) {
   return outsize;
 }
 
-int dload_request(uint8_t *input, uint32_t insize,
+int dload_request(void *input, uint32_t insize,
 		  uint8_t **output, uint32_t *outsize) {
   
   uint16_t crc = 0;
@@ -269,7 +267,7 @@ int dload_request(uint8_t *input, uint32_t insize,
   return 0;
 }
 
-int dload_response(uint8_t *input, uint32_t insize,
+int dload_response(void *input, uint32_t insize,
 		   uint8_t **output, uint32_t *outsize) {
   
   uint32_t size = 0;

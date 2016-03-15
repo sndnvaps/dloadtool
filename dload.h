@@ -111,10 +111,12 @@ typedef struct {
 } __attribute__((packed)) dload_unlock;
 
 typedef struct {
-  uint8_t nak;
-  uint16_t error_code;
-} __attribute__((packed)) dload_nak;
-  
+  uint8_t code;
+  uint16_t errno;
+} __attribute__((packed)) dload_ack;
+
+extern int nak_errno;
+
 int dload_send_magic(int fd);
 int dload_send_reset(int fd);
 int dload_send_unlock(int fd, uint64_t key);
@@ -122,14 +124,14 @@ int dload_get_params(int fd);
 int dload_get_sw_version(int fd);
 int dload_send_execute(int fd, uint32_t address);
 int dload_upload_firmware(int fd, uint32_t address, const char* path);
-int dload_upload_data(int fd, uint32_t addr, const char *data, size_t len);
+int dload_upload_data(int fd, uint32_t addr, const void *data, size_t len);
 
-int dload_read(int fd, uint8_t* buffer, uint32_t size);
-int dload_write(int fd, uint8_t* buffer, uint32_t size);
+int dload_read(int fd, void* buffer, uint32_t size);
+int dload_write(int fd, void* buffer, uint32_t size);
 
-int dload_request(uint8_t* input, uint32_t insize,
+int dload_request(void* input, uint32_t insize,
 		  uint8_t** output, uint32_t* outsize);
-int dload_response(uint8_t* input, uint32_t insize,
+int dload_response(void* input, uint32_t insize,
 		   uint8_t** output, uint32_t* outsize);
 int dload_escape(uint8_t* input, uint32_t insize,
 		 uint8_t** output, uint32_t* outsize);

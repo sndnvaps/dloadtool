@@ -1,1 +1,1 @@
-obj-m := qcserial.o
+obj-m := qcserial.o usb_wwan.o usb-serial.o
