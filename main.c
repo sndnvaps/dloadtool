@@ -128,7 +128,8 @@ static int dload_action_loadmbn(const char *path,
   if(n < 0){
     fprintf(stderr, "Error reading file\n");
     size = -1;
-  }
+  }else
+    fprintf(stderr, "\n");
 
  out:
   close(fd);

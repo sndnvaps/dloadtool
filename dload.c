@@ -39,8 +39,7 @@ int dload_send_magic(int fd) {
 int dload_send_reset(int fd) {
 
   dload_ack ack;
-  uint8_t request = DLOAD_RESET;
- 
+  uint8_t request = DLOAD_RESET; 
   dload_write(fd, &request, sizeof(request));
   dload_read(fd, &ack, sizeof ack);
   if(ack.code == DLOAD_ACK)
@@ -197,12 +196,13 @@ int dload_read(int fd, void *buffer, uint32_t size) {
   
   size_t insize;
   uint32_t outsize;
+  uint8_t inbuf[BUFSIZE];
   uint8_t *outbuf = NULL;
     
   //fprintf(stderr, "< ");
-  insize = read(fd, buffer, size);
+  insize = read(fd, inbuf, sizeof(inbuf));
   if(insize > 0){
-    dload_response(buffer, insize, &outbuf, &outsize);
+    dload_response(inbuf, insize, &outbuf, &outsize);
     if(outsize <= size) {
       if(verbose) hexdump(outbuf, outsize);
       memcpy(buffer, outbuf, outsize);
