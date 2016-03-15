@@ -18,7 +18,7 @@ void *ihex_raw_from_file(const char *path,
 			 unsigned int *offset_r) {
 
   int err;
-  char *buf;
+  uint8_t *buf;
   uint32_t offset;
   unsigned int n, i = 0;
 
@@ -32,10 +32,12 @@ void *ihex_raw_from_file(const char *path,
 
   /* TODO : check */
   size_t size = ihex_rs_get_size(rs);
-  if((buf = (char*)malloc(size))){
+  if((buf = (uint8_t*)malloc(size))){
     for(n = 0;;){
-      if((err = ihex_rs_iterate_data(rs, &i, &record, &offset)))
+      if((err = ihex_rs_iterate_data(rs, &i, &record, &offset))){
+	fprintf(stderr, "%s", ihex_error());
 	goto out;
+      }	
       if(!record)
 	break;
       /* Ignore offset */

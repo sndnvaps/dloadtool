@@ -198,18 +198,20 @@ static int dload_action_signhex(const char *hex_path,
     header.body_length += stat.st_size;
     header.signature_length = stat.st_size;
     /* Output modified header */
-    write(fileno(stdout), &header, sizeof(header));
+    write(STDOUT_FILENO, &header, sizeof(header));
     /* Output data */
     while(bytes_left){
-      if((n = write(fileno(stdout), &data[offset], bytes_left)) > 0){
+      if((n = write(STDOUT_FILENO, &data[offset], bytes_left)) > 0){
 	bytes_left -= n;
 	offset += n;
-      }else
+      }else{
+	perror("write");
 	break;
+      }
     }
     /* Append signature. TODO : check */
     while((n = read(sign_fd, buf, 0x100)) > 0)
-      write(fileno(stdout), buf, n);
+      write(STDOUT_FILENO, buf, n);
     
     /* That's all, folks */
     close(sign_fd);
@@ -248,12 +250,12 @@ static int dload_action_signmbn(const char *mbn_path,
   header.body_length += stat.st_size;
   header.signature_length = stat.st_size;
   /* Output modified header */
-  write(fileno(stdout), &header, sizeof(header));
+  write(STDOUT_FILENO, &header, sizeof(header));
   /* Output data */
   while(bytes_left){
     if((n = read(mbn_fd, buf, sizeof(buf))) > 0){
       /* TODO : check */
-      write(fileno(stdout), buf, n);
+      write(STDOUT_FILENO, buf, n);
       bytes_left -= n;
       offset += n;
     }else
@@ -265,7 +267,7 @@ static int dload_action_signmbn(const char *mbn_path,
   
   /* Append signature. TODO : check */
   while((n = read(sign_fd, buf, 0x100)) > 0)
-    write(fileno(stdout), buf, n);
+    write(STDOUT_FILENO, buf, n);
   
   /* That's all, folks */
   close(sign_fd);

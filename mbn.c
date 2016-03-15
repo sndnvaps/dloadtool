@@ -66,8 +66,9 @@ int mbn_from_file(const char *path, mbn_header_t *h) {
 void *mbn_from_mem(void *buf, size_t size, mbn_header_t *h) {
 
   int i;
+  mbn_header_t *ptr;
   for(i = 0; i < size; i++){
-    mbn_header_t *ptr = (mbn_header_t*)&((uint8_t*)buf)[i];
+    ptr = (mbn_header_t*)&((uint8_t*)buf)[i];
     if(ptr->codeword == MBN_HEAD_CODEWORD &&
        ptr->magic == MBN_HEAD_MAGIC){
       /* We found start of header, copy */
@@ -79,7 +80,7 @@ void *mbn_from_mem(void *buf, size_t size, mbn_header_t *h) {
     }
   }
 
-  return (i == size ? NULL : h->body);
+  return (i == size ? NULL : ptr->body);
 }
 
 int mbn_display_header(mbn_header_t *h) {
