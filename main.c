@@ -111,11 +111,10 @@ static int dload_action_loadmbn(const char *path,
   if((mbn_fd = mbn_from_file(path, &header)) < 0)
     return -1;
   
-  /* Here's the header is correct, start loading */
+  /* Here the header is correct, start loading */
   fprintf(stderr, "Loading file %s...", path);
   while((n = read(mbn_fd, buf, sizeof(buf))) > 0){
-    if(dload_upload_data(fd,
-			 addr + header.load_address + size,
+    if(dload_upload_data(fd, addr + header.load_address + size,
 			 buf, n) < 0){
       fprintf(stderr, "Error during upload\n");
       size = -1;

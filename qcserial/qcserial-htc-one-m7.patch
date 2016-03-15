@@ -1,0 +1,10 @@
+--- drivers/usb/serial/qcserial.c	2016-03-14 05:28:54.000000000 +0100
++++ drivers/usb/serial/qcserial-htc-one-m7.c	2016-03-15 17:46:59.380580758 +0100
+@@ -171,6 +171,7 @@
+ 
+ 	/* Huawei devices */
+ 	{DEVICE_HWI(0x03f0, 0x581d)},	/* HP lt4112 LTE/HSPA+ Gobi 4G Modem (Huawei me906e) */
++	{DEVICE_HWI(0x05c6, 0x9006)},   /* HTC One M7 (bricked) */
+ 
+ 	{ }				/* Terminating entry */
+ };
