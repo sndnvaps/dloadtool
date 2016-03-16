@@ -192,6 +192,28 @@ int dload_send_execute(int fd, uint32_t address) {
   return -1;
 }
 
+int dload_memory_read_req(int fd, uint32_t address, size_t len) {
+
+  int outsize;
+  dload_read_req request;
+  uint8_t outbuf[BUFSIZE];
+  dload_ack *ack = (dload_ack*)outbuf;
+
+  request.code = DLOAD_MEMORY_READ_REQ;
+  request.address = flip_endian32(address);
+  request.size = flip_endian16(0xffff & len);
+
+  dload_write(fd, &request, sizeof(request));
+  outsize = dload_read(fd, outbuf, sizeof(outbuf));
+  if(ack->code == DLOAD_MEMORY_READ){
+    hexdump(outbuf, outsize);
+    return 0;
+  }
+
+  nak_errno = ack->errno;
+  return -1;
+}
+
 int dload_read(int fd, void *buffer, uint32_t size) {
   
   size_t insize;

@@ -47,6 +47,17 @@ static int dload_action_send(const char *data, int fd) {
   return -1;
 }
 
+static int dload_action_read(const char *address,
+			     const char *length, int fd) {
+
+  unsigned int addr, len;
+  
+  sscanf(address, "%x", &addr);
+  sscanf(length, "%x", &len);
+
+  return dload_memory_read_req(fd, addr, len);
+}
+
 static int dload_action_loadhex(const char *path,
 				const char *address, int fd) {
 
@@ -67,7 +78,7 @@ static int dload_action_loadhex(const char *path,
     fprintf(stderr, "Load address is 0x%08x\n", offset);
     do{
       size_t len = ((size < 0x400) ? size : 0x400); /* FIXME */
-      if(dload_upload_data(fd, addr + i, &buf[i], len) < 0){
+      if(dload_upload_data(fd, addr + offset + i, &buf[i], len) < 0){
 	fprintf(stderr, "Error during upload\n");
 	break;
       }
@@ -289,6 +300,7 @@ static int dload_action_signmbn(const char *mbn_path,
 #define DLOAD_COMMAND_INFOMBN 8
 #define DLOAD_COMMAND_SIGNHEX 9
 #define DLOAD_COMMAND_SIGNMBN 10
+#define DLOAD_COMMAND_READ    11
 
 int dload_parse_command(const char *cmd) {
 
@@ -309,6 +321,7 @@ int dload_parse_command(const char *cmd) {
        !strcmp(cmd, "hexsign")) return DLOAD_COMMAND_SIGNHEX;
     if(!strcmp(cmd, "mbnsign") ||
        !strcmp(cmd, "signmbn")) return DLOAD_COMMAND_SIGNMBN;
+    if(!strcmp(cmd, "read"))    return DLOAD_COMMAND_READ;
   }
   
   return -1;
@@ -364,6 +377,7 @@ int main(int argc, char **argv) {
     case DLOAD_COMMAND_INFOMBN : dload_action_infombn(arg); break;
     case DLOAD_COMMAND_SIGNHEX : dload_action_signhex(arg, arg2); break;
     case DLOAD_COMMAND_SIGNMBN : dload_action_signmbn(arg, arg2); break;
+    case DLOAD_COMMAND_READ : dload_action_read(arg, arg2, fd); break;
     default : fprintf(stderr, "Unknown command %s\n", argv[optind-2]); break;
     }
 
