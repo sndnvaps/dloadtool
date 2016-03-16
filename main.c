@@ -121,11 +121,16 @@ static int dload_action_loadmbn(const char *path,
 
   if((mbn_fd = mbn_from_file(path, &header)) < 0)
     return -1;
-  
+
   /* Here the header is correct, start loading */
-  fprintf(stderr, "Loading file %s...", path);
+  uint32_t base_addr = (header.load_address - header.header_length) + addr;
+  fprintf(stderr, "Loading file %s at addr 0x%08x...", path, base_addr);
+  /* TODO : check */
+  dload_upload_data(fd, base_addr, &header, header.header_length);
+  base_addr += header.header_length;
+  
   while((n = read(mbn_fd, buf, sizeof(buf))) > 0){
-    if(dload_upload_data(fd, addr + header.load_address + size,
+    if(dload_upload_data(fd, base_addr + size,
 			 buf, n) < 0){
       fprintf(stderr, "Error during upload\n");
       size = -1;
@@ -209,6 +214,7 @@ static int dload_action_signhex(const char *hex_path,
     /* Modify header to include signature */
     header.body_length += stat.st_size;
     header.signature_length = stat.st_size;
+    header.cert_store_length = stat.st_size;
     /* Output modified header */
     write(STDOUT_FILENO, &header, sizeof(header));
     /* Output data */

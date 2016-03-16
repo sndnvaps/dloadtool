@@ -18,7 +18,7 @@ typedef struct mbn_header {
   uint32_t magic;            /* 34 10 d7 73 */
   uint32_t image_type;       /* see below */
   uint32_t padding[2];       /* FFFFFFFF FFFFFFFF */
-  uint32_t head_length;      /* should be 50 */
+  uint32_t header_length;    /* should be 0x50 / 80 */
   uint32_t load_address;     /* load addr / start addr */
   uint32_t body_length;      /* code + signature + certificater store size */
   uint32_t code_length;
@@ -26,6 +26,7 @@ typedef struct mbn_header {
   uint32_t signature_length; /* 256 bytes */
   uint32_t cert_store_address;
   uint32_t cert_store_length;
+  uint32_t reserved[7];
   uint8_t  body[0];
 } __attribute__ ((packed)) mbn_header_t;
 
