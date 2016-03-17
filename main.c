@@ -51,11 +51,32 @@ static int dload_action_read(const char *address,
 			     const char *length, int fd) {
 
   unsigned int addr, len;
-  
-  sscanf(address, "%x", &addr);
-  sscanf(length, "%x", &len);
+
+  if(address && length){
+    sscanf(address, "%x", &addr);
+    sscanf(length, "%x", &len);
+  }else{
+    fprintf(stderr, "read : missing parameter(s) !\n");
+    return -1;
+  }
 
   return dload_memory_read_req(fd, addr, len);
+}
+
+static int dload_action_erase(const char *address,
+			      const char *length, int fd) {
+
+  unsigned int addr, len;
+  
+  if(address && length){
+    sscanf(address, "%x", &addr);
+    sscanf(length, "%x", &len);
+  }else{
+    fprintf(stderr, "erase : missing parameter(s) !\n");
+    return -1;
+  }
+  
+  return dload_send_erase(fd, addr, len);
 }
 
 static int dload_action_loadhex(const char *path,
@@ -307,6 +328,7 @@ static int dload_action_signmbn(const char *mbn_path,
 #define DLOAD_COMMAND_SIGNHEX 9
 #define DLOAD_COMMAND_SIGNMBN 10
 #define DLOAD_COMMAND_READ    11
+#define DLOAD_COMMAND_ERASE   12
 
 int dload_parse_command(const char *cmd) {
 
@@ -328,6 +350,7 @@ int dload_parse_command(const char *cmd) {
     if(!strcmp(cmd, "mbnsign") ||
        !strcmp(cmd, "signmbn")) return DLOAD_COMMAND_SIGNMBN;
     if(!strcmp(cmd, "read"))    return DLOAD_COMMAND_READ;
+    if(!strcmp(cmd, "erase"))   return DLOAD_COMMAND_ERASE;
   }
   
   return -1;
@@ -384,7 +407,11 @@ int main(int argc, char **argv) {
     case DLOAD_COMMAND_SIGNHEX : dload_action_signhex(arg, arg2); break;
     case DLOAD_COMMAND_SIGNMBN : dload_action_signmbn(arg, arg2); break;
     case DLOAD_COMMAND_READ : dload_action_read(arg, arg2, fd); break;
-    default : fprintf(stderr, "Unknown command %s\n", argv[optind-2]); break;
+    case DLOAD_COMMAND_ERASE : dload_action_erase(arg, arg2, fd); break;
+      
+    default :
+      fprintf(stderr, "Unknown command %s\n", argv[optind-2]);
+      break;
     }
 
     close(fd);

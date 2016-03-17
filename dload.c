@@ -206,13 +206,34 @@ int dload_memory_read_req(int fd, uint32_t address, size_t len) {
   dload_write(fd, &request, sizeof(request));
   outsize = dload_read(fd, outbuf, sizeof(outbuf));
   if(ack->code == DLOAD_MEMORY_READ){
-    hexdump(outbuf, outsize);
+    //hexdump(outbuf, outsize);
+    (void)outsize;
     return 0;
   }
 
   nak_errno = ack->errno;
   return -1;
 }
+
+int dload_send_erase(int fd, uint32_t address, size_t len) {
+  
+  dload_ack ack;
+  dload_erase request;
+  
+  request.code = DLOAD_ERASE;
+  request.address = flip_endian32(address);
+  request.size = flip_endian16(0xffff & len);
+  
+  dload_write(fd, &request, sizeof(request));
+  dload_read(fd, &ack, sizeof(ack));
+  if(ack.code == DLOAD_ACK)
+    return 0;
+
+  nak_errno = ack.errno;
+  return -1;
+}
+
+/* Deeper function */
 
 int dload_read(int fd, void *buffer, uint32_t size) {
   
@@ -221,12 +242,12 @@ int dload_read(int fd, void *buffer, uint32_t size) {
   uint8_t inbuf[BUFSIZE];
   uint8_t *outbuf = NULL;
     
-  //fprintf(stderr, "< ");
+  fprintf(stderr, "< ");
   insize = read(fd, inbuf, sizeof(inbuf));
   if(insize > 0){
     dload_response(inbuf, insize, &outbuf, &outsize);
     if(outsize <= size) {
-      if(verbose) hexdump(outbuf, outsize);
+      /* if(verbose) */ hexdump(outbuf, outsize);
       memcpy(buffer, outbuf, outsize);
     }
   }

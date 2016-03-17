@@ -127,6 +127,7 @@ int dload_send_execute(int fd, uint32_t address);
 int dload_upload_firmware(int fd, uint32_t address, const char* path);
 int dload_upload_data(int fd, uint32_t addr, const void *data, size_t len);
 int dload_memory_read_req(int fd, uint32_t address, size_t len);
+int dload_send_erase(int fd, uint32_t address, size_t len);
   
 int dload_read(int fd, void* buffer, uint32_t size);
 int dload_write(int fd, void* buffer, uint32_t size);
