@@ -225,9 +225,9 @@ int dload_send_erase(int fd, uint32_t address, size_t len) {
   uint16_t segment = 0xffff & (address >> 16);
   uint32_t addr = (segment << 4) + (0xffff & address);
   /* Set message content */
-  request.address[0] = 0x0f & (address >> 16);
-  request.address[1] = 0xff & (address >> 8);
-  request.address[2] = 0xff & (address >> 0);
+  request.address[0] = 0x0f & (addr >> 16);
+  request.address[1] = 0xff & (addr >> 8);
+  request.address[2] = 0xff & (addr >> 0);
   /* Compute 24-bit size */
   request.size[0] = 0xff & (len >> 16);
   request.size[1] = 0xff & (len >> 8);
