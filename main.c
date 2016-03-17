@@ -342,7 +342,8 @@ int dload_parse_command(const char *cmd) {
     if(!strcmp(cmd, "loadmbn")) return DLOAD_COMMAND_LOADMBN;
     if(!strcmp(cmd, "loadbin")) return DLOAD_COMMAND_LOADBIN;
     if(!strcmp(cmd, "execute") ||
-       !strcmp(cmd, "exec"))    return DLOAD_COMMAND_EXECUTE;
+       !strcmp(cmd, "exec")    ||
+       !strcmp(cmd, "go"))      return DLOAD_COMMAND_EXECUTE;
     if(!strcmp(cmd, "infombn") ||
        !strcmp(cmd, "mbninfo")) return DLOAD_COMMAND_INFOMBN;
     if(!strcmp(cmd, "signhex") ||

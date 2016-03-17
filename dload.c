@@ -163,7 +163,7 @@ int dload_upload_data(int fd, uint32_t addr,
   
   memcpy(packet->buffer, data, len);
   packet->code = DLOAD_WRITE_ADDR;
-  packet->size = flip_endian16(len);
+  packet->size = flip_endian16(0xffff & len);
   packet->address = flip_endian32(addr);
     
   dload_write(fd, packet, sizeof(dload_write_addr) + len);
