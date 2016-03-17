@@ -93,7 +93,7 @@ static int dload_action_loadhex(const char *path,
   dload_get_sw_version(fd);
   dload_get_params(fd);
   
-  fprintf(stderr, "Loading file %s...", path);
+  fprintf(stderr, "Loading file %s...\n", path);
   if((buf = ihex_raw_from_file(path, &size, &offset))){
     fprintf(stderr, "File size is %u bytes\n", size);
     fprintf(stderr, "Load address is 0x%08x\n", offset);
