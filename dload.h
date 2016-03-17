@@ -83,7 +83,12 @@ typedef struct {
     uint32_t address;
     uint16_t size;
 } __attribute__((packed)) dload_read_req;
-#define dload_erase dload_read_req
+
+typedef struct {
+  uint8_t code;
+  uint8_t address[3];
+  uint8_t size[3];
+} __attribute__ ((packed)) dload_erase;
 
 typedef struct {
     uint8_t code;

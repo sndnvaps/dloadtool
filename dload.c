@@ -219,10 +219,19 @@ int dload_send_erase(int fd, uint32_t address, size_t len) {
   
   dload_ack ack;
   dload_erase request;
-  
+
   request.code = DLOAD_ERASE;
-  request.address = flip_endian32(address);
-  request.size = flip_endian16(0xffff & len);
+  /* Compute 20-bit address */
+  uint16_t segment = 0xffff & (address >> 16);
+  uint32_t addr = (segment << 4) + (0xffff & address);
+  /* Set message content */
+  request.address[0] = 0x0f & (address >> 16);
+  request.address[1] = 0xff & (address >> 8);
+  request.address[2] = 0xff & (address >> 0);
+  /* Compute 24-bit size */
+  request.size[0] = 0xff & (len >> 16);
+  request.size[1] = 0xff & (len >> 8);
+  request.size[2] = 0xff & (len);
   
   dload_write(fd, &request, sizeof(request));
   dload_read(fd, &ack, sizeof(ack));
