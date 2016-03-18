@@ -33,16 +33,23 @@ extern int ack_errno;
 #define DLOAD_SW_VERS_RESP                0x0D
 #define DLOAD_POWERDOWN                   0x0E
 #define DLOAD_WRITE_ADDR                  0x0F
-#define DLOAD_MEMORY_DEBUG_QUERY          0x10  //Memory Debug Query
-#define DLOAD_MEMORY_DEBUG_INFO           0x11  //Memory Debug Info
-#define DLOAD_MEMORY_READ_REQ             0x12  //Memory Read Request
-#define DLOAD_MEMORY_READ                 0x13  //Memory Read
-#define DLOAD_MEMOY_UNFRAMED_READ_REQ     0x14  //Memory Unframed Read Request
-#define DLOAD_SERIAL_NUMBER_READ_REQ      0x14  //Serial Number Read Request
-#define DLOAD_SERIAL_NUMBER_READ_RESP     0x14  //Serial Number Read Response
-#define DLOAD_MEMORY_UNFRAMED_READ_RESP   0x15  //Memory Unframed Read Response
-//#define DLOAD_SERIAL_NUMBER_READ_REQ      0x16  //Serial Number Read Request
-//#define DLOAD_SERIAL_NUMBER_READ_RESP     0x16
+#define DLOAD_MEMORY_DEBUG_QUERY          0x10
+#define DLOAD_MEMORY_DEBUG_INFO           0x11
+#define DLOAD_MEMORY_READ_REQ             0x12
+#define DLOAD_MEMORY_READ                 0x13
+#define DLOAD_MEMORY_UNFRAMED_READ_REQ    0x14 /* SBL only */
+#define DLOAD_PBL_SERIAL_NUMBER_READ_REQ  0x14 /* PBL only */
+#define DLOAD_PBL_SERIAL_NUMBER_READ_RESP 0x14 /* SBL only */
+#define DLOAD_MEMORY_UNFRAMED_READ_RESP   0x15 /* PBL only */
+#define DLOAD_SERIAL_NUMBER_READ_REQ      0x16
+#define DLOAD_SERIAL_NUMBER_READ_RESP     0x16
+#define DLOAD_HW_ID_READ_REQ              0x17
+#define DLOAD_HW_ID_READ_RESP             0x17
+#define DLOAD_PUBLIC_KEY_HASH_READ_REQ    0x18
+#define DLOAD_PUBLIC_KEY_HASH_READ_RESP   0x18
+#define DLOAD_QPST_COOKIE_READ_REQ        0x19
+#define DLOAD_QPST_COOKIE_READ_RESP       0x1A
+#define DLOAD_SWITCH_TO_DLOAD_CMD         0x3a /* SBL only */
 
 /* NACK codes - Only for information, no use at the moment 
  * Data is from Gassan Idriss' openPST Project
