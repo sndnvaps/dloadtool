@@ -40,7 +40,8 @@ static int dload_action_send(const char *data, int fd) {
   }
   
   dload_write(fd, output, size);
-  dload_read(fd, input, sizeof(input));
+  size = dload_read(fd, input, sizeof(input));
+  hexdump(input, size); /* Dump */
   if(input[0] == 2)
     return 0;
 
@@ -60,7 +61,11 @@ static int dload_action_read(const char *address,
     return -1;
   }
 
-  return dload_memory_read_req(fd, addr, len);
+  if(dload_memory_read_req(fd, addr, len) < 0)
+    fprintf(stderr, "0x3 error - %s (%d)",
+	    dload_strerror(nak_errno), nak_errno);
+
+  return 0;
 }
 
 static int dload_action_erase(const char *address,
@@ -76,7 +81,11 @@ static int dload_action_erase(const char *address,
     return -1;
   }
   
-  return dload_send_erase(fd, addr, len);
+  if(dload_send_erase(fd, addr, len) < 0)
+    fprintf(stderr, "0x3 error - %s (%d)",
+	    dload_strerror(nak_errno), nak_errno);
+
+  return 0;
 }
 
 static int dload_action_loadhex(const char *path,
@@ -100,7 +109,8 @@ static int dload_action_loadhex(const char *path,
     do{
       size_t len = ((size < 0x400) ? size : 0x400); /* FIXME */
       if(dload_upload_data(fd, addr + offset + i, &buf[i], len) < 0){
-	fprintf(stderr, "Error during upload\n");
+	fprintf(stderr, "0x3 - upload failed : %s (%d)\n",
+		dload_strerror(nak_errno), nak_errno);
 	break;
       }
       i += len;
@@ -110,6 +120,7 @@ static int dload_action_loadhex(const char *path,
     } while(size > 0);
     /* Don't forget this */
     ihex_free(buf);
+    fprintf(stderr, " Done\n");
   }
 
   return 0;
@@ -153,7 +164,8 @@ static int dload_action_loadmbn(const char *path,
   while((n = read(mbn_fd, buf, sizeof(buf))) > 0){
     if(dload_upload_data(fd, base_addr + size,
 			 buf, n) < 0){
-      fprintf(stderr, "Error during upload\n");
+      fprintf(stderr, "0x3 - upload failed : %s (%d)\n",
+	      dload_strerror(nak_errno), nak_errno);
       size = -1;
       goto out;
     }
@@ -166,7 +178,7 @@ static int dload_action_loadmbn(const char *path,
     fprintf(stderr, "Error reading file\n");
     size = -1;
   }else
-    fprintf(stderr, "\n");
+    fprintf(stderr, " Done\n");
 
  out:
   close(fd);
@@ -182,7 +194,10 @@ static int dload_action_loadbin(const char *path,
   
   dload_get_sw_version(fd);
   dload_get_params(fd);
-  dload_upload_firmware(fd, addr, path);
+  
+  if(dload_upload_firmware(fd, addr, path) < 0)
+    fprintf(stderr, "Upload failed : %s (%d)\n",
+	    dload_strerror(nak_errno), nak_errno);
   //dload_send_execute(fd, addr);
 
   return 0;
@@ -199,10 +214,16 @@ static int dload_action_info(int fd) {
 static int dload_action_execute(const char *address, int fd) {
 
   unsigned int addr;
-  if(sscanf(address, "%x", &addr))
-    return dload_send_execute(fd, addr);
-
-  return -1;
+  if(sscanf(address, "%x", &addr)){
+    if(dload_send_execute(fd, addr) < 0)
+      fprintf(stderr, "0x3 - can't execute : %s (%d)\n",
+	      dload_strerror(nak_errno), nak_errno);
+    else
+      fprintf(stderr, "Done\n");
+  }else
+    fprintf(stderr, "execute : missing parameter(s)\n");
+  
+  return 0;
 }
 
 static int dload_action_signhex(const char *hex_path,

@@ -206,8 +206,7 @@ int dload_memory_read_req(int fd, uint32_t address, size_t len) {
   dload_write(fd, &request, sizeof(request));
   outsize = dload_read(fd, outbuf, sizeof(outbuf));
   if(ack->code == DLOAD_MEMORY_READ){
-    //hexdump(outbuf, outsize);
-    (void)outsize;
+    hexdump(outbuf, outsize);
     return 0;
   }
 
@@ -256,7 +255,7 @@ int dload_read(int fd, void *buffer, uint32_t size) {
   if(insize > 0){
     dload_response(inbuf, insize, &outbuf, &outsize);
     if(outsize <= size) {
-      /* if(verbose) */ hexdump(outbuf, outsize);
+      if(verbose) hexdump(outbuf, outsize);
       memcpy(buffer, outbuf, outsize);
     }
   }
@@ -408,4 +407,42 @@ int dload_unescape(uint8_t *input, uint32_t insize,
   *outsize = size;
   *output = buffer;
   return 0;
+}
+
+const char *dload_strerror(int errno) {
+
+  switch(errno) {
+  case DLOAD_NAK_INVALID_FRAME_FCS :
+    return "Invalid frame FCS";
+  case DLOAD_NAK_INVALID_DESTINATION_ADDRESS :
+    return "Invalid destination address";
+  case DLOAD_NAK_INVALID_LENGTH :
+    return "Invalid length";
+  case DLOAD_NAK_UNEXPECTED_END_OF_PACKET :
+    return "Unexpected end of packet";
+  case DLOAD_NAK_DATA_LENGTH_TOO_LARGE :
+    return "Data length too large";
+  case DLOAD_NAK_INVALID_COMMAND :
+    return "Invalid command";
+  case DLOAD_NAK_OPERATION_FAILT :
+    return "Operation failed";
+  case DLOAD_NAK_WRONG_FLASH_INTELLIGENT_ID :
+    return "Wrong flash intelligent ID";
+  case DLOAD_NAK_BAD_PROGRAMMING_VOLTAGE :
+    return "Bad programming voltage";
+  case DLOAD_NAK_WRITE_VERIFY_FAILED :
+    return "Write verify failed";
+  case DLOAD_NAK_UNLOCK_REQUIRED :
+    return "Unlock requied";
+  case DLOAD_NAK_INCORRECT_SECURITY_CODE :
+    return "Incorrect security code";
+  case DLOAD_NAK_CANNOT_POWER_DOWN_PHONE :
+    return "Cannot power down phone";
+  case DLOAD_NAK_OPERATION_NOT_PERMITTED :
+    return "Operation not permitted";
+  case DLOAD_NAK_INVALID_READ_ADDRESS :
+    return "Invalid read address";
+  default :
+    return "To be continued...";
+  }
 }

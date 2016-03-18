@@ -146,4 +146,6 @@ int dload_escape(uint8_t* input, uint32_t insize,
 int dload_unescape(uint8_t* input, uint32_t insize,
 		   uint8_t** output, uint32_t* outsize);
 
+const char *dload_strerror(int errno);
+
 #endif /* defined(__dloadtool__dload__) */
