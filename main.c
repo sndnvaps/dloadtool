@@ -227,7 +227,8 @@ static int dload_action_execute(const char *address, int fd) {
 }
 
 static int dload_action_signhex(const char *hex_path,
-				const char *sign_path) {
+				const char *sign_path,
+				const char *cert_path) {
 
   int ret = -1, n;
   uint8_t *buf, *data;  
@@ -236,12 +237,20 @@ static int dload_action_signhex(const char *hex_path,
   size_t bytes_left;
   unsigned int offset, size;
 
-  int sign_fd;
-  struct stat stat;
+  int sign_fd, cert_fd;
+  struct stat sign_stat, cert_stat;
   
   /* Open signature file. TODO : Check */
   if((sign_fd = open(sign_path, O_RDONLY)) != -1)
-    fstat(sign_fd, &stat);
+    fstat(sign_fd, &sign_stat);
+  else{
+    perror("can't find signature file\n");
+    return -1;
+  }
+
+  /* Open certificate file. TODO : Check */
+  if((cert_fd = open(cert_path, O_RDONLY)) != -1)
+    fstat(cert_fd, &cert_stat);
   else{
     perror("can't find signature file\n");
     return -1;
@@ -254,9 +263,14 @@ static int dload_action_signhex(const char *hex_path,
     offset = 0;
     bytes_left = header.body_length;
     /* Modify header to include signature */
-    header.body_length += stat.st_size;
-    header.signature_length = stat.st_size;
-    header.cert_store_length = stat.st_size;
+    header.signature_address = header.load_address +
+      header.header_length + header.body_length;
+    header.signature_length = sign_stat.st_size;
+    header.cert_store_address = header.signature_address +
+      header.signature_length;
+    header.cert_store_length = cert_stat.st_size;
+    /* Correct body length */
+    header.body_length += (sign_stat.st_size + cert_stat.st_size);
     /* Output modified header */
     write(STDOUT_FILENO, &header, sizeof(header));
     /* Output data */
@@ -271,6 +285,9 @@ static int dload_action_signhex(const char *hex_path,
     }
     /* Append signature. TODO : check */
     while((n = read(sign_fd, buf, 0x100)) > 0)
+      write(STDOUT_FILENO, buf, n);
+    /* Append certificate. TODO : check */
+    while((n = read(cert_fd, buf, 0x100)) > 0)
       write(STDOUT_FILENO, buf, n);
     
     /* That's all, folks */
@@ -384,13 +401,16 @@ void usage(char **argv) {
   exit(0);
 }
 
+#define MAX_ARG 3
+
 int main(int argc, char **argv) {
 
-  int fd, c, cmd;
+  int fd, c, cmd, i;
   struct termios terminal_data;
 
+  int argn = 0;
+  char *arg[MAX_ARG] = { 0 };
   char *dev = "/dev/ttyUSB0";
-  char *arg = NULL, *arg2 = NULL;
   
   while((c = getopt(argc, argv, "F:vh")) != -1){
     switch(c){
@@ -404,8 +424,8 @@ int main(int argc, char **argv) {
     usage(argv);
 
   /* Get cmd argument (two max for the moment) */
-  arg = argv[++optind];
-  arg2 = argv[++optind];
+  for(i = optind + 1; i < argc; i++)
+    arg[argn++] = argv[i];
   
   /* Vendor ID: 0x5c6
    * Product ID: 0x9006 | 0x9008
@@ -420,19 +440,23 @@ int main(int argc, char **argv) {
     case DLOAD_COMMAND_INFO : dload_action_info(fd); break;
     case DLOAD_COMMAND_RESET : dload_send_reset(fd); break;
     case DLOAD_COMMAND_MAGIC : dload_send_magic(fd); break;
-    case DLOAD_COMMAND_SEND : dload_action_send(arg, fd); break;
-    case DLOAD_COMMAND_LOADHEX : dload_action_loadhex(arg, arg2, fd); break;
-    case DLOAD_COMMAND_LOADMBN : dload_action_loadmbn(arg, arg2, fd); break;
-    case DLOAD_COMMAND_LOADBIN : dload_action_loadbin(arg, arg2, fd); break;
-    case DLOAD_COMMAND_EXECUTE : dload_action_execute(arg, fd); break;
-    case DLOAD_COMMAND_INFOMBN : dload_action_infombn(arg); break;
-    case DLOAD_COMMAND_SIGNHEX : dload_action_signhex(arg, arg2); break;
-    case DLOAD_COMMAND_SIGNMBN : dload_action_signmbn(arg, arg2); break;
-    case DLOAD_COMMAND_READ : dload_action_read(arg, arg2, fd); break;
-    case DLOAD_COMMAND_ERASE : dload_action_erase(arg, arg2, fd); break;
+    case DLOAD_COMMAND_SEND : dload_action_send(arg[0], fd); break;
+    case DLOAD_COMMAND_LOADHEX :
+      dload_action_loadhex(arg[0], arg[1], fd); break;
+    case DLOAD_COMMAND_LOADMBN :
+      dload_action_loadmbn(arg[0], arg[1], fd); break;
+    case DLOAD_COMMAND_LOADBIN :
+      dload_action_loadbin(arg[0], arg[1], fd); break;
+    case DLOAD_COMMAND_EXECUTE : dload_action_execute(arg[0], fd); break;
+    case DLOAD_COMMAND_INFOMBN : dload_action_infombn(arg[0]); break;
+    case DLOAD_COMMAND_SIGNHEX :
+      dload_action_signhex(arg[0], arg[1], arg[2]); break;
+    case DLOAD_COMMAND_SIGNMBN : dload_action_signmbn(arg[0], arg[1]); break;
+    case DLOAD_COMMAND_READ : dload_action_read(arg[0], arg[1], fd); break;
+    case DLOAD_COMMAND_ERASE : dload_action_erase(arg[0], arg[1], fd); break;
       
     default :
-      fprintf(stderr, "Unknown command %s\n", argv[optind-2]);
+      fprintf(stderr, "Unknown command %s\n", argv[optind]);
       break;
     }
 

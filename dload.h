@@ -39,8 +39,8 @@ extern int ack_errno;
 #define DLOAD_MEMORY_READ                 0x13
 #define DLOAD_MEMORY_UNFRAMED_READ_REQ    0x14 /* SBL only */
 #define DLOAD_PBL_SERIAL_NUMBER_READ_REQ  0x14 /* PBL only */
-#define DLOAD_PBL_SERIAL_NUMBER_READ_RESP 0x14 /* SBL only */
-#define DLOAD_MEMORY_UNFRAMED_READ_RESP   0x15 /* PBL only */
+#define DLOAD_PBL_SERIAL_NUMBER_READ_RESP 0x14 /* PBL only */
+#define DLOAD_MEMORY_UNFRAMED_READ_RESP   0x15 /* SBL only */
 #define DLOAD_SERIAL_NUMBER_READ_REQ      0x16
 #define DLOAD_SERIAL_NUMBER_READ_RESP     0x16
 #define DLOAD_HW_ID_READ_REQ              0x17
@@ -49,7 +49,7 @@ extern int ack_errno;
 #define DLOAD_PUBLIC_KEY_HASH_READ_RESP   0x18
 #define DLOAD_QPST_COOKIE_READ_REQ        0x19
 #define DLOAD_QPST_COOKIE_READ_RESP       0x1A
-#define DLOAD_SWITCH_TO_DLOAD_CMD         0x3a /* SBL only */
+#define DLOAD_SWITCH_TO_DLOAD_CMD         0x3A /* SBL only */
 
 /* NACK codes - Only for information, no use at the moment 
  * Data is from Gassan Idriss' openPST Project
